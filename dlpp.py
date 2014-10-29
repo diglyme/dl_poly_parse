@@ -8,14 +8,19 @@
 #  * give option to output as csv
 #  * give option to return properties as horizontally or vertically sorted
 #  * allow importing as library to get single properties as lists
+#  * refactor so that each function needn't take OUTPUT, BREAK
 
-def getLines(OUTPUT):
+OUTPUT = "OUTPUT"
+PARSED = "PARSED"
+BREAK = " ------------------------------------------------------------------------------------------------------------------------\n"
+
+def getLines():
 	with open(OUTPUT, "r") as f:
 		lines = f.readlines()
 	return lines
 
-def getHeaders(OUTPUT, BREAK):
-	lines = getLines(OUTPUT)
+def getHeaders():
+	lines = getLines()
 	firstBreak = lines.index(BREAK)
 	headers = lines[firstBreak+2].split() + lines[firstBreak+3].split() + lines[firstBreak+4].split()
 	headers.remove("(s)")
@@ -23,8 +28,22 @@ def getHeaders(OUTPUT, BREAK):
 	return headers
 
 
-def getProperty(OUTPUT, property):
-	pass
+def getProperty(prop):
+	lines = getLines()
+	headers = getHeaders()
+
+	# truncate from first BREAK
+	lines = lines[lines.index(BREAK):]
+
+	propIndex = headers.index(prop)
+	propList = []
+
+	for i, l in enumerate(lines):
+		if l == BREAK and len(lines[i+1].split()) == 10:
+			values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
+			propList.append(values[propIndex])
+
+	return propList
 
 def sortList(unsorted):
 	# returns list reading down each column of 3 in OUTPUT rather than across each row
@@ -37,11 +56,11 @@ def sortList(unsorted):
 			sort.append(j)
 	return sort[:30]
 
-def getAllProps(OUTPUT, BREAK):
+def getAllProps():
 	# returns physical properties as a huge list of lists
 
-	lines = getLines(OUTPUT)
-	headers = getHeaders(OUTPUT, BREAK)
+	lines = getLines()
+	headers = getHeaders()
 	properties = []
 
 	for i, l in enumerate(lines):
@@ -58,11 +77,8 @@ def getAllProps(OUTPUT, BREAK):
 		# could optimise by initialising each list with zeroes
 
 def main():
-	OUTPUT = "OUTPUT"
-	PARSED = "PARSED"
-	BREAK = " ------------------------------------------------------------------------------------------------------------------------\n"
 
-	n, headers, properties = getAllProps(OUTPUT, BREAK)
+	n, headers, properties = getAllProps()
 	sortedHeaders = sortList(headers)
 	sortedProps = sortList(properties)
 
@@ -75,7 +91,7 @@ def main():
 			parsed += "%-11s " % (p[i])
 
 
-	with open("PARSED", "w") as f:
+	with open(PARSED, "w") as f:
 		f.write(parsed)
 
 if __name__ == '__main__':
