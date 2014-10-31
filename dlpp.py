@@ -8,7 +8,7 @@
 #  * give option to output as csv
 #  * give option to return properties as horizontally or vertically sorted
 #  * allow importing as library to get single properties as lists
-#  * refactor so that each function needn't take OUTPUT, BREAK
+#  * functions to get rolling and total averages
 
 OUTPUT = "OUTPUT"
 PARSED = "PARSED"
@@ -60,7 +60,6 @@ def getAllProps():
 	# returns physical properties as a huge list of lists
 
 	lines = getLines()
-	headers = getHeaders()
 	properties = []
 
 	for i, l in enumerate(lines):
@@ -68,17 +67,18 @@ def getAllProps():
 			values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
 			
 			if properties == []:	# fill with lists of initial values if empty
-				properties = [[v] for v in values]
+				properties = [[float(v)] for v in values]
 			else: 					# append otherwise
 				for j, p in enumerate(properties):
-					p.append(values[j])
+					p.append(float(values[j]))
 
-	return len(properties[0]), headers, properties
+	return properties
 		# could optimise by initialising each list with zeroes
 
-def main():
-
-	n, headers, properties = getAllProps()
+def parse():
+	headers = getHeaders()
+	properties = getAllProps()
+	n = len(properties[0])
 	sortedHeaders = sortList(headers)
 	sortedProps = sortList(properties)
 
@@ -95,4 +95,4 @@ def main():
 		f.write(parsed)
 
 if __name__ == '__main__':
-	main()
+	parse()
