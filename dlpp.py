@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # dl_poly_parse
 # If ran as script, takes a DL_POLY OUTPUT file and returns the physical properties as a parsed
