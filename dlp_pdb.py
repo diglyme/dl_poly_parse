@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # dl_poly_pdb
 # Converts DL_POLY REVCON file to pdb
