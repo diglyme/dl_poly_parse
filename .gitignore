@@ -2,6 +2,9 @@
 OUTPUT
 PARSED
 REVCON
+HISTORY
+*.pdb
+*.xyz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
