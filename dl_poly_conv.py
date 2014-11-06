@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # dl_poly_conv
 # Converts DL_POLY REVCON file to pdb or xyz
@@ -30,11 +30,11 @@ def xyz():
 	atoms = getAtoms(getLines())
 
 	# xyz file begins with number of atoms and a comment line
-	xyzoutput = len(atoms) + "\n" + DIR + "\n"
+	xyzoutput = "%i\n%s\n" % (len(atoms), DIR)
 	
 	for atom in atoms:
 		atom["atom"] = atom["atom"][0].capitalize()
-		xyzoutput += " ".join([atom["atom"], atom["x"], atom["y"], atom["z"]) + "\n"
+		xyzoutput += " ".join([atom["atom"], atom["x"], atom["y"], atom["z"]]) + "\n"
 
 	with open(DIR+".xyz", "w") as f:
 		f.write(xyzoutput)
