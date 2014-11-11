@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # dl_poly_conv
 # Converts DL_POLY REVCON file to pdb or xyz
@@ -69,7 +69,7 @@ def main():
         pdb()
         return 0
 
-    print "Please use 'xyz' or 'pdb' options to choose output format."
+    print("Please use 'xyz' or 'pdb' options to choose output format.")
 
 if __name__ == "__main__":
     main()
