@@ -5,6 +5,10 @@
 # For each timestep, will print CoM of guest and cage that it is in
 # This can then be used to count frequency of visited cages
 
+# To do:
+#  * Calculate cage CoMs at each step, compare time difference
+#  * Use file.readline(), file.tell() and file.seek() instead of reading all lines to conserve memory
+
 from numpy import array, where, square, sqrt
 
 # Input and output files
