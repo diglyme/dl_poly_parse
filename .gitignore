@@ -1,7 +1,12 @@
 # input and output files
+CONFIG
+CONTROL
+FIELD
 OUTPUT
 PARSED
 REVCON
+REVIVE
+REVOLD
 HISTORY
 *.pdb
 *.xyz
