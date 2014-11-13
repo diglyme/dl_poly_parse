@@ -30,7 +30,7 @@ def getLines():
 
 # 	return centres_list
 
-def guest_com(lines):
+def centre_of_mass(lines):
 	mass = []
 	x = []
 	y = []
@@ -44,18 +44,8 @@ def guest_com(lines):
 			z.append(float(lines[i+1].split()[2]))
 
 	com_x = sum((array(mass)*array(x)))/sum(mass)
-	com_y = sum((array(mass)*array(z)))/sum(mass)
+	com_y = sum((array(mass)*array(y)))/sum(mass)
 	com_z = sum((array(mass)*array(z)))/sum(mass)
-	# tot_mass = sum(mass)
-
-	# com_x = 0
-	# com_y = 0
-	# com_z = 0
-
-	# for i, m in enumerate(mass):
-	# 	com_x += m * x[i]
-	# 	com_y += m * y[i]
-	# 	com_z += m * z[i]
 
 	return com_x, com_y, com_z
 
@@ -72,10 +62,13 @@ def main():
 	for i, line in enumerate(lines):
 		if (i-2) % step_lines == 0: # first timstep comes after two header lines
 			step = int(line.split()[1])
-			#print(lines[i+4+cage_atoms*2])
-			x, y, z = guest_com(lines[i+4+cage_atoms*2:i+step_lines])
+
+			x, y, z = centre_of_mass(lines[i+4+cage_atoms*2:i+step_lines]) # gets guest CoM
 			output.append(str(step)+" "+str(x)+" "+str(y)+" "+str(z)+"\n")
 
 	with open(OUT, "w") as f:
 		for line in output:
 			f.write(line)
+
+if __name__ == "__main__":
+	main()
