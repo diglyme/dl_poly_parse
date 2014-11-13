@@ -5,20 +5,22 @@
 # For each timestep, will print CoM of guest and cage that it is in
 # This can then be used to count frequency of visited cages
 
-from numpy import array
+from numpy import array, where, square, sqrt
 
 # Input and output files
 HISTORY = "HISTORY"
 OUT = "CoM.txt"
 
 # Define atomic masses
-H = 1
-C = 12
-N = 14
-O = 16
+# H = 1
+# C = 12
+# N = 14
+# O = 16
 
 # Number of atoms per cage
 CC3 = 168
+# Cages per unit cell
+CAGES = 8
 
 def getLines():
     with open(HISTORY, "r") as f:
@@ -49,22 +51,42 @@ def centre_of_mass(lines):
 
 	return com_x, com_y, com_z
 
+def cage_centres(lines):
+	cages_x = []
+	cages_y = []
+	cages_z = []
+
+	for i in range(CAGES):
+		x, y, z = centre_of_mass(lines[i*CC3:(i*CC3)+CC3])
+		cages_x.append(x)
+		cages_y.append(y)
+		cages_z.append(z)
+
+	return array(cages_x), array(cages_y), array(cages_z)
+
+def in_cage(guest_x, guest_y, guest_z, cages_x, cages_y, cages_z):
+	distances = sqrt(square(cages_x-guest_x) + square(cages_y-guest_y) + square(cages_z-guest_z))
+	index = where(distances==min(distances))
+	return index[0][0] + 1
+
 def main():
 	lines = getLines()
 	output = []
 
-	cage_atoms = CC3 * 8
+	cage_atoms = CC3 * CAGES
 	guest_atoms = int(lines[1].split()[2]) - cage_atoms
 
 	# each atom takes 2 lines, plus 4 header lines per timestep
 	step_lines = (cage_atoms + guest_atoms) * 2 + 4
 
+	cages_x, cages_y, cages_z = cage_centres(lines[6:6+cage_atoms*2])
+
 	for i, line in enumerate(lines):
 		if (i-2) % step_lines == 0: # first timstep comes after two header lines
 			step = int(line.split()[1])
-
-			x, y, z = centre_of_mass(lines[i+4+cage_atoms*2:i+step_lines]) # gets guest CoM
-			output.append(str(step)+" "+str(x)+" "+str(y)+" "+str(z)+"\n")
+			guest_x, guest_y, guest_z = centre_of_mass(lines[i+4+cage_atoms*2:i+step_lines]) # gets guest CoM
+			current_cage = in_cage(guest_x, guest_y, guest_z, cages_x, cages_y, cages_z)
+			output.append(str(step)+" "+str(round(guest_x, 4))+" "+str(round(guest_y, 4))+" "+str(round(guest_z, 4))+" "+str(current_cage)+"\n")
 
 	with open(OUT, "w") as f:
 		for line in output:
