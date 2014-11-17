@@ -15,12 +15,6 @@ from numpy import array, where, square, sqrt
 HISTORY = "HISTORY"
 OUT = "CoM.txt"
 
-# Define atomic masses
-# H = 1
-# C = 12
-# N = 14
-# O = 16
-
 # Number of atoms per cage
 CC3 = 168
 # Cages per unit cell
@@ -30,11 +24,6 @@ def getLines():
     with open(HISTORY, "r") as f:
         lines = f.readlines()
     return lines
-
-# def cageCoMs(lines):
-# 	for i, l in enumerate(lines):
-
-# 	return centres_list
 
 def centre_of_mass(lines):
 	mass = []
