@@ -33,7 +33,7 @@ def centre_of_mass(lines):
     z = []
     
     for i, line in enumerate(lines):
-        if len(line.split()) == 4:
+        if len(line.split()) == 4 and line is not "":
             mass.append(float(line.split()[2]))
             x.append(float(lines[i+1].split()[0]))
             y.append(float(lines[i+1].split()[1]))
@@ -73,19 +73,23 @@ def main():
     # each atom takes 2 lines, plus 4 header lines per timestep
     step_lines = (cage_atoms + guest_atoms) * 2 + 4
 
-    # cages_x, cages_y, cages_z = cage_centres(lines[6:6+cage_atoms*2])
+    # number of header lines, this increases by two with each additional re-start
+    join = 2
+
+    with open(OUT, "w") as f:
+        f.write("Step X Y Z In_Cage\n")
 
     for i, line in enumerate(lines):
-        if (i-2) % step_lines == 0: # first timstep comes after two header lines
+        if (i-join) % step_lines == 0: # first timstep comes after two header lines
+            if line.split()[0] == "DLFIELD":
+                join += 2
+                continue
             step = int(line.split()[1])
             cages_x, cages_y, cages_z = cage_centres(lines[i+4:i+4+cage_atoms*2])
             guest_x, guest_y, guest_z = centre_of_mass(lines[i+4+cage_atoms*2:i+step_lines]) # gets guest CoM
             current_cage = in_cage(guest_x, guest_y, guest_z, cages_x, cages_y, cages_z)
-            output.append(str(step)+" "+str(round(guest_x, 4))+" "+str(round(guest_y, 4))+" "+str(round(guest_z, 4))+" "+str(current_cage)+"\n")
-
-    with open(OUT, "w") as f:
-        for line in output:
-            f.write(line)
+            with open(OUT, "a") as f:
+                f.write((str(step)+" "+str(round(guest_x, 4))+" "+str(round(guest_y, 4))+" "+str(round(guest_z, 4))+" "+str(current_cage)+"\n"))
 
 if __name__ == "__main__":
     main()
