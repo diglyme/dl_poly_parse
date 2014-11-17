@@ -13,7 +13,7 @@ from numpy import array, where, square, sqrt
 
 # Input and output files
 HISTORY = "HISTORY"
-OUT = "CoM.txt"
+OUT = "CoM_approx.txt"
 
 # Number of atoms per cage
 CC3 = 168
