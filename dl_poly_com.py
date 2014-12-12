@@ -17,8 +17,8 @@ HISTORY = "HISTORY"
 OUT = "CoM.txt"
 
 # Number of atoms per cage
-CC3 = 168
-# Cages per unit cell
+ATOMS = 168
+# Cages per cell
 CAGES = 8
 
 def getLines():
@@ -27,13 +27,15 @@ def getLines():
     return lines
 
 def centre_of_mass(lines):
+    #print(lines)
     mass = []
     x = []
     y = []
     z = []
     
     for i, line in enumerate(lines):
-        if len(line.split()) == 4 and line is not "":
+        #print("Line:"+line)
+        if len(line.split()) == 4:
             mass.append(float(line.split()[2]))
             x.append(float(lines[i+1].split()[0]))
             y.append(float(lines[i+1].split()[1]))
@@ -51,7 +53,7 @@ def cage_centres(lines):
     cages_z = []
 
     for i in range(CAGES):
-        x, y, z = centre_of_mass(lines[i*CC3:(i*CC3)+CC3])
+        x, y, z = centre_of_mass(lines[i*ATOMS:(i*ATOMS)+ATOMS])
         cages_x.append(x)
         cages_y.append(y)
         cages_z.append(z)
@@ -64,32 +66,46 @@ def in_cage(guest_x, guest_y, guest_z, cages_x, cages_y, cages_z):
     return index[0][0] + 1
 
 def main():
+    print("Reading HISTORY file... ", end="", flush=True)
     lines = getLines()
-    output = []
+    print("done!")
 
-    cage_atoms = CC3 * CAGES
+    cage_atoms = ATOMS * CAGES
     guest_atoms = int(lines[1].split()[2]) - cage_atoms
+    init = 0
 
     # each atom takes 2 lines, plus 4 header lines per timestep
     step_lines = (cage_atoms + guest_atoms) * 2 + 4
 
     # number of header lines, this increases by two with each additional re-start
     join = 2
+    last_step = 0
 
     with open(OUT, "w") as f:
         f.write("Step X Y Z In_Cage\n")
+
+    print("Computing centres of mass")
 
     for i, line in enumerate(lines):
         if (i-join) % step_lines == 0: # first timstep comes after two header lines
             if line.split()[0] == "DLFIELD":
                 join += 2
+                last_step = step
                 continue
-            step = int(line.split()[1])
+
+            step = int(line.split()[1]) + last_step
             cages_x, cages_y, cages_z = cage_centres(lines[i+4:i+4+cage_atoms*2])
             guest_x, guest_y, guest_z = centre_of_mass(lines[i+4+cage_atoms*2:i+step_lines]) # gets guest CoM
             current_cage = in_cage(guest_x, guest_y, guest_z, cages_x, cages_y, cages_z)
+
+            if init == 0:
+                init_x, init_y, init_z = guest_x, guest_y, guest_z
+                init = 1
+
+            distance = sqrt(square(guest_x-init_x)+square(guest_y-init_y)+square(guest_z-init_z))
             with open(OUT, "a") as f:
-                f.write((str(step)+" "+str(round(guest_x, 4))+" "+str(round(guest_y, 4))+" "+str(round(guest_z, 4))+" "+str(current_cage)+"\n"))
+                f.write((str(step)+" "+str(round(guest_x, 4))+" "+str(round(guest_y, 4))+" "+str(round(guest_z, 4))+" "+str(current_cage)+" "+str(distance)+"\n"))
+            print(str(round(i/len(lines)*100, 1))+"% done\r", end="")
 
 if __name__ == "__main__":
     main()
