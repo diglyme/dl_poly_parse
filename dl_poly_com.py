@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from numpy import array, where, square, sqrt, concatenate
+import pdb
 
 # input and output files
 HISTORY = "HISTORY"
@@ -13,6 +14,10 @@ CAGES = 8
 
 cage_atoms = CAGE_SIZE * CAGES
 
+WINDOW = [(2, 100, 142), (16, 72, 128), (30, 58, 156), (44, 86, 114)]
+
+VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
+
 # Number of guest molecules
 GUESTS = 1
 
@@ -24,14 +29,10 @@ class Cage:
         self.z = z
         self.atoms = len(x)
 
-    def position(self, index):
-        return (self.x[index], self.y[index], self.z[index])
-
-    def centre_of_mass(self):
-        # create temporary coordinates that can exceed unit cell for CoM calculation
-        tmp_x = self.x
-        tmp_y = self.y
-        tmp_z = self.z
+        # create temporary coordinates that can exceed unit cell
+        self.per_x = x
+        self.per_y = y
+        self.per_z = z
         for i in range(self.atoms-1):
             xdiff = self.x[i+1] - self.x[0]
             ydiff = self.y[i+1] - self.y[0]
@@ -40,24 +41,60 @@ class Cage:
             # if distances between atom 0 and atom i are physically unreasonable
             # change coordinates of atom i to bring it close to atom 0
             if abs(xdiff) > box[self.n]/2 and xdiff < 0:
-                tmp_x[i+1] += box[self.n]
+                self.per_x[i+1] += box[self.n]
             if abs(xdiff) > box[self.n]/2 and xdiff > 0:
-                tmp_x[i+1] -= box[self.n]
+                self.per_x[i+1] -= box[self.n]
 
             if abs(ydiff) > box[self.n]/2 and ydiff < 0:
-                tmp_y[i+1] += box[self.n]
+                self.per_y[i+1] += box[self.n]
             if abs(ydiff) > box[self.n]/2 and ydiff > 0:
-                tmp_y[i+1] -= box[self.n]
+                self.per_y[i+1] -= box[self.n]
 
             if abs(zdiff) > box[self.n]/2 and zdiff < 0:
-                tmp_z[i+1] += box[self.n]
+                self.per_z[i+1] += box[self.n]
             if abs(zdiff) > box[self.n]/2 and zdiff > 0:
-                tmp_z[i+1] -= box[self.n]
+                self.per_z[i+1] -= box[self.n]
+
+    def per_position(self, index):
+        return (self.per_x[index], self.per_y[index], self.per_z[index])
+
+    def periodic_coords(self):
+        pass
+        
+    def centre_of_mass(self, periodic=False):
+        # # create temporary coordinates that can exceed unit cell for CoM calculation
+        # tmp_x = self.x
+        # tmp_y = self.y
+        # tmp_z = self.z
+        # for i in range(self.atoms-1):
+        #     xdiff = self.x[i+1] - self.x[0]
+        #     ydiff = self.y[i+1] - self.y[0]
+        #     zdiff = self.z[i+1] - self.z[0]
+
+        #     # if distances between atom 0 and atom i are physically unreasonable
+        #     # change coordinates of atom i to bring it close to atom 0
+        #     if abs(xdiff) > box[self.n]/2 and xdiff < 0:
+        #         tmp_x[i+1] += box[self.n]
+        #     if abs(xdiff) > box[self.n]/2 and xdiff > 0:
+        #         tmp_x[i+1] -= box[self.n]
+
+        #     if abs(ydiff) > box[self.n]/2 and ydiff < 0:
+        #         tmp_y[i+1] += box[self.n]
+        #     if abs(ydiff) > box[self.n]/2 and ydiff > 0:
+        #         tmp_y[i+1] -= box[self.n]
+
+        #     if abs(zdiff) > box[self.n]/2 and zdiff < 0:
+        #         tmp_z[i+1] += box[self.n]
+        #     if abs(zdiff) > box[self.n]/2 and zdiff > 0:
+        #         tmp_z[i+1] -= box[self.n]
 
         # use moved coordinates to calculate centre of mass
-        com_x = sum(cage_mass*tmp_x)/sum(cage_mass)
-        com_y = sum(cage_mass*tmp_y)/sum(cage_mass)
-        com_z = sum(cage_mass*tmp_z)/sum(cage_mass)
+        com_x = sum(cage_mass*self.per_x)/sum(cage_mass)
+        com_y = sum(cage_mass*self.per_y)/sum(cage_mass)
+        com_z = sum(cage_mass*self.per_z)/sum(cage_mass)
+
+        if periodic:
+            return (com_x, com_y, com_z)
 
         # some CoMs will now be outside unit cell
         # hopefully this will return them to correct centre
@@ -79,16 +116,29 @@ class Cage:
         return (com_x, com_y, com_z)
 
     def pore_radius(self):
-        pass
+        com = self.centre_of_mass(periodic=True)
+        distances = [ distance(self.per_position(i), com) - VDW[cage_type[i][0]] for i in range(self.atoms) ]
+        return min(distances)
 
     def window_radii(self):
-        pass
+        windows = []
+        for w in WINDOW:
+            A, B, C = w
+            #pdb.set_trace()
+            a = distance(self.per_position(B), self.per_position(A))
+            b = distance(self.per_position(C), self.per_position(B))
+            c = distance(self.per_position(A), self.per_position(C))
+
+            radius = (a*b*c) / sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c))
+            windows.append(radius)
+        return windows
+
 
     def largest_window(self):
-        pass
+        return max(self.window_radii())
 
     def smallest_window(self):
-        pass
+        return min(self.window_radii())
 
 class Guest:
     def __init__(self, n, x, y, z, types, masses):
@@ -191,7 +241,7 @@ def pull_data(lines):
         # at each restart step, we want all future steps added to final of previous run
         step = concatenate((step[:s], step[s:]+step[s-1]))
     
-    start = 1 # counter of how many starts have passed
+    jump = 1 # counter of how many starts have passed
     tot_steps = len(step)
 
     tot_atoms = int(lines[1].split()[-1])
@@ -204,9 +254,9 @@ def pull_data(lines):
         guest = []
 
         if i in restarts:
-            start += 1
+            jump += 1
 
-        start = (i+1)*4 + tot_atoms*i*2 + start*2 # two header lines for each start, 4 for each timstep
+        start = (i+1)*4 + tot_atoms*i*2 + jump*2 # two header lines for each start, 4 for each timstep
         end = start + tot_atoms*2
 
         # unit cell coordinate data found before atom start
@@ -256,7 +306,20 @@ def distance(coords1, coords2):
     x2, y2, z2 = coords2
     return sqrt(square(x2-x1) + square(y2-y1) + square(z2-z1))
 
+def visualise(frame, begin, stop):
+    for i, f in enumerate(frame[begin:stop]):
+        cages_com = [ c.centre_of_mass() for c in f["cage"] ]
+        towrite = str(CAGES) + "\nCentres of mass " + str(i) + "\n"
+
+        for com in cages_com:
+            x, y, z = com
+            towrite += " ".join(["Fe", str(x), str(y), str(z)]) + "\n"
+
+        with open("centres.xyz", "a") as centresfile:
+            centresfile.write(towrite)
+
 def main(frame):
+    print("Calculating centres of mass:")
 
     if len(frame[0]["guest"]) > 1:
         print("Main function of this program only prints centre of mass of a single guest molecule.")
@@ -280,6 +343,9 @@ def main(frame):
 
         #with open(OUT, "a") as output:
         output.write(towrite)
+
+        done = str(round((i/len(frame))*100, 1))
+        print(done+"% done\r", end="", flush=True)
 
     output.close()
 
