@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from numpy import array, where, square, sqrt, concatenate
+from numpy import array, empty, fromiter, where, square, sqrt, concatenate
 import pdb
 
 # input and output files
@@ -8,17 +8,15 @@ HISTORY = "HISTORY"
 OUT = "CoM.txt"
 
 # Number of atoms per cage
-CAGE_SIZE = 168
+CAGE_ATOMS = 168
 # Cages per cell
 CAGES = 8
-
-cage_atoms = CAGE_SIZE * CAGES
 
 WINDOW = [(2, 100, 142), (16, 72, 128), (30, 58, 156), (44, 86, 114)]
 
 VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
 
-# Number of guest molecules
+GUEST_ATOMS = 1
 GUESTS = 1
 
 class Cage:
@@ -215,88 +213,80 @@ def get_lines():
     print("done!")
     return lines
 
-def pull_data(lines):
+def pull_data():
     global box, step, cage_type, cage_mass
+    timestep = 0
+    init = True
+    atom = False
+    step = []
+    atom_type = []
+    atom_mass = []
+    box = []
+    atoms_per = CAGE_ATOMS + CAGES + GUEST_ATOMS + GUESTS
 
-    print("Pulling data from file:")
+    with open(HISTORY, "r") as histfile:
+        lines = histfile.readlines()
 
-    # list which all coordinate data will go into, each list item is a timestep
+    tot_atoms = sum(1 for l in lines if len(l) == 43)
+    #print(tot_atoms)
+
+    x = empty(tot_atoms, "float")
+    y = empty(tot_atoms, "float")
+    z = empty(tot_atoms, "float")
+
+    for line in lines:
+        #print(line)
+        l = line.split()
+
+        if "timestep" in l:
+            timestep += 1
+            step.append(int(l[1]))
+            if timestep > 1: init = False
+
+        elif len(l) == 4:
+            atom = True
+            if init:
+                atom_type.append(l[0])
+                atom_mass.append(float(l[2]))
+
+        elif len(l) == 3 and atom:
+            x[timestep-1] = float(l[0])
+            y[timestep-1] = float(l[0])
+            z[timestep-1] = float(l[0])
+            atom = False
+
+        elif len(l) == 3 and len(box) < timestep:
+            box.append(float(l[0]))
+
+        else: atom = False
+
+    lines = None
+
+    cage_type = atom_type[:CAGE_ATOMS]
+    cage_mass = fromiter(atom_mass[:CAGE_ATOMS], "float", CAGE_ATOMS)
+    guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS]
+    guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS], "float", GUEST_ATOMS)
+
     frame = []
 
-    # list of unit cell dimension at each timestep
-    box = []
+    for i in range(len(step)):
+        start = i*atoms_per
+        end = (i+1)*atoms_per
 
-    init = True # for checking if we haven't set up cage_type and cage_mass variables yet
-                # for getting cage atom masses on first cage encountered
-                # this assumes the atom ordering is identical for each cage!
-
-    # list of timestep values
-    step = array([ int(l.split()[1]) for l in lines if "timestep" in l])
-
-    # indices of each time in step list when step is less than previous, discarding the first
-    # this gives the index of each restart timestep
-    restarts = [ i for i, s in enumerate(step) if s < step[i-1] ][1:]
-
-    for s in restarts:
-        # at each restart step, we want all future steps added to final of previous run
-        step = concatenate((step[:s], step[s:]+step[s-1]))
-    
-    jump = 1 # counter of how many starts have passed
-    tot_steps = len(step)
-
-    tot_atoms = int(lines[1].split()[-1])
-    guest_atoms = tot_atoms - cage_atoms
-    guest_size = guest_atoms // GUESTS
-
-    for i in range(tot_steps):
-        # each frame will be a dict containing list of cage objects and list of guest objects
-        cage = []
-        guest = []
-
-        if i in restarts:
-            jump += 1
-
-        start = (i+1)*4 + tot_atoms*i*2 + jump*2 # two header lines for each start, 4 for each timstep
-        end = start + tot_atoms*2
-
-        # unit cell coordinate data found before atom start
-        box.append(float(lines[start-1].split()[2]))
+        cages = []
+        guests = []
 
         for j in range(CAGES):
-            cage_start = start + j*CAGE_SIZE*2
-            cage_end = start + (j+1)*CAGE_SIZE*2
-
-            # every second line contains coordinates
-            xs = array([ float(l.split()[0]) for l in lines[cage_start+1:cage_end:2] ])
-            ys = array([ float(l.split()[1]) for l in lines[cage_start+1:cage_end:2] ])
-            zs = array([ float(l.split()[2]) for l in lines[cage_start+1:cage_end:2] ])
-
-            cage.append(Cage(i, xs, ys, zs)) # create Cage object, add to list of cages
-
-            if init: # get cage atom types and masses if they have not yet been initialised
-                cage_type = [ l.split()[0] for l in lines [cage_start:cage_end:2]]
-                cage_mass = array([ float(l.split()[2]) for l in lines[cage_start:cage_end:2] ])
-                init = False
+            cage_start = start + j * CAGE_ATOMS
+            cage_end = start + (j+1) * CAGE_ATOMS
+            cages.append(Cage(i, x[cage_start:cage_end], y[cage_start:cage_end], z[cage_start:cage_end]))
 
         for j in range(GUESTS):
-            guest_start = start + cage_atoms*2 + j*guest_size*2
-            guest_end = start + cage_atoms*2 + (j+1)*guest_size*2
+            guest_start = start + (CAGE_ATOMS+CAGES) + j * GUEST_ATOMS
+            guest_end = start + (CAGE_ATOMS+CAGES) + (j+1) * GUEST_ATOMS
+            guests.append(Guest(i, x[guest_start:guest_end], y[guest_start:guest_end], z[guest_start:guest_end], guest_type, guest_mass))
 
-            xs = array([ float(l.split()[0]) for l in lines[guest_start+1:guest_end:2] ])
-            ys = array([ float(l.split()[1]) for l in lines[guest_start+1:guest_end:2] ])
-            zs = array([ float(l.split()[2]) for l in lines[guest_start+1:guest_end:2] ])
-
-            atom_types = [ l.split()[0] for l in lines[guest_start:guest_end:2] ]
-            atom_masses = array([ float(l.split()[2]) for l in lines[guest_start:guest_end:2] ])
-
-            guest.append(Guest(i, xs, ys, zs, atom_types, atom_masses))
-
-        # add lists of cages and guests to list of frames
-        # as a dict so they can be called by frame[n]["guest"][m]
-        frame.append({"cage": cage, "guest": guest})
-
-        done = str(round((i/tot_steps)*100, 1)) # percentage completed
-        print(done+"% done\r", end="", flush=True)
+        frame.append({"cage": cages, "guest": guests})
 
     return frame
 
@@ -352,4 +342,4 @@ def main(frame):
     return 0
 
 if __name__ == "__main__":
-    main(pull_data(get_lines()))
+    main(pull_data())
