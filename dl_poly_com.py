@@ -210,7 +210,7 @@ def get_lines():
     print("Reading HISTORY file... ", end="", flush=True)
     with open(HISTORY, "r") as histfile:
         lines = histfile.readlines()
-    print("done!")
+    print("done.")
     return lines
 
 def pull_data():
@@ -218,14 +218,18 @@ def pull_data():
     timestep = 0
     init = True
     atom = False
+    atom_num = 0
     step = []
     atom_type = []
     atom_mass = []
     box = []
     atoms_per = CAGE_ATOMS + CAGES + GUEST_ATOMS + GUESTS
 
+    print("Reading HISTORY file... ", end="", flush=True)
     with open(HISTORY, "r") as histfile:
         lines = histfile.readlines()
+    print("done!")
+    num_lines = len(lines)
 
     tot_atoms = sum(1 for l in lines if len(l) == 43)
     #print(tot_atoms)
@@ -234,9 +238,13 @@ def pull_data():
     y = empty(tot_atoms, "float")
     z = empty(tot_atoms, "float")
 
-    for line in lines:
+    print("Extracting data from file...")
+    for i, line in enumerate(lines):
         #print(line)
         l = line.split()
+
+        # if len(step) > 0:
+        #     if step[-1] == 86000: debug = True
 
         if "timestep" in l:
             timestep += 1
@@ -250,9 +258,10 @@ def pull_data():
                 atom_mass.append(float(l[2]))
 
         elif len(l) == 3 and atom:
-            x[timestep-1] = float(l[0])
-            y[timestep-1] = float(l[0])
-            z[timestep-1] = float(l[0])
+            x[atom_num] = float(l[0])
+            y[atom_num] = float(l[1])
+            z[atom_num] = float(l[2])
+            atom_num += 1
             atom = False
 
         elif len(l) == 3 and len(box) < timestep:
@@ -260,16 +269,25 @@ def pull_data():
 
         else: atom = False
 
+        debug = False
+
+        done = str(round(((i+1)/num_lines)*100, 1))
+        print(done+"% done\r", end="", flush=True)
+
+
+    print("Cleaning up raw file data.")
     lines = None
 
+    print("Creating cage and guest objects...")
     cage_type = atom_type[:CAGE_ATOMS]
     cage_mass = fromiter(atom_mass[:CAGE_ATOMS], "float", CAGE_ATOMS)
     guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS]
     guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS], "float", GUEST_ATOMS)
 
     frame = []
+    steps = len(step)
 
-    for i in range(len(step)):
+    for i in range(steps):
         start = i*atoms_per
         end = (i+1)*atoms_per
 
@@ -288,6 +306,10 @@ def pull_data():
 
         frame.append({"cage": cages, "guest": guests})
 
+        done = str(round(((i+1)/steps)*100, 1))
+        print(done+"% done\r", end="", flush=True)
+
+    print("All data extracted!")
     return frame
 
 def distance(coords1, coords2):
@@ -308,38 +330,51 @@ def visualise(frame, begin, stop):
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
 
-def main(frame):
-    print("Calculating centres of mass:")
+def main():
+    print("Number of guest molecules: ", end="", flush=True)
+    GUESTS = int(input())
+    print("Number of atoms per guest: ", end="", flush=True)
+    GUEST_ATOMS = int(input())
 
-    if len(frame[0]["guest"]) > 1:
+    if GUESTS != 1 or GUEST_ATOMS < 1:
         print("Main function of this program only prints centre of mass of a single guest molecule.")
         return 1
 
-    output = open(OUT, "a")
+    frame = pull_data()
+    steps = len(frame)
+    guest_start = frame[0]["guest"][0].centre_of_mass()
+    # square_displacement = []
 
-    for i, f in enumerate(frame):
-        # calculate com for each cage in frame
-        cages_com = [ c.centre_of_mass() for c in f["cage"] ]
-        guest_com = f["guest"][0].centre_of_mass()
+    with open(OUT, "w") as output:
+        output.write("") # clear existing file
 
-        distances = [ distance(guest_com, com) for com in cages_com ]
-        # guest is in cage with minimum distance to centre of mass
-        # this gives cage number, counting from 1 rather than 0
-        in_cage = distances.index(min(distances)) + 1
+    print("\nCalculating centres of mass:")
+    
+    with open(OUT, "a") as output:
+        for i, f in enumerate(frame):
+            # calculate com for each cage in frame
+            cages_com = [ c.centre_of_mass() for c in f["cage"] ]
+            guest_com = f["guest"][0].centre_of_mass()
 
-        x, y, z = guest_com
+            # square_displacement.append(square(distance(guest_start, guest_com)))
+            # msd = sum(square_displacement) / len(square_displacement)
 
-        towrite = " ".join([str(step[i]), str(x), str(y), str(z), str(in_cage)]) + "\n"
+            distances = [ distance(guest_com, com) for com in cages_com ]
+            # guest is in cage with minimum distance to centre of mass
+            # this gives cage number, counting from 1 rather than 0
+            in_cage = distances.index(min(distances)) + 1
 
-        #with open(OUT, "a") as output:
-        output.write(towrite)
+            x, y, z = guest_com
 
-        done = str(round((i/len(frame))*100, 1))
-        print(done+"% done\r", end="", flush=True)
+            towrite = " ".join([str(step[i]), str(x), str(y), str(z), str(in_cage)]) + "\n"
 
-    output.close()
+            #with open(OUT, "a") as output:
+            output.write(towrite)
+
+            done = str(round(((i+1)/steps)*100, 1))
+            print(done+"% done\r", end="", flush=True)
 
     return 0
 
 if __name__ == "__main__":
-    main(pull_data())
+    main()
