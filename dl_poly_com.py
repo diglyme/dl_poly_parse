@@ -2,6 +2,7 @@
 
 from numpy import array, empty, fromiter, where, square, sqrt, concatenate
 import pdb
+import argparse
 
 # input and output files
 HISTORY = "HISTORY"
@@ -214,7 +215,7 @@ def get_lines():
     return lines
 
 def pull_data():
-    global box, step, cage_type, cage_mass
+    global steps, box, step, cage_type, cage_mass
     timestep = 0
     init = True
     atom = False
@@ -330,50 +331,60 @@ def visualise(frame, begin, stop):
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
 
-def main():
-    print("Number of guest molecules: ", end="", flush=True)
-    GUESTS = int(input())
-    print("Number of atoms per guest: ", end="", flush=True)
-    GUEST_ATOMS = int(input())
-
-    if GUESTS != 1 or GUEST_ATOMS < 1:
-        print("Main function of this program only prints centre of mass of a single guest molecule.")
-        return 1
-
-    frame = pull_data()
-    steps = len(frame)
-    guest_start = frame[0]["guest"][0].centre_of_mass()
-    # square_displacement = []
-
-    with open(OUT, "w") as output:
-        output.write("") # clear existing file
-
+def guest_com(frame):
+    com = []
+    in_cage = []
     print("\nCalculating centres of mass:")
-    
-    with open(OUT, "a") as output:
-        for i, f in enumerate(frame):
+
+    for i, f in enumerate(frame):
             # calculate com for each cage in frame
             cages_com = [ c.centre_of_mass() for c in f["cage"] ]
             guest_com = f["guest"][0].centre_of_mass()
 
-            # square_displacement.append(square(distance(guest_start, guest_com)))
-            # msd = sum(square_displacement) / len(square_displacement)
-
-            distances = [ distance(guest_com, com) for com in cages_com ]
+            distances = [ distance(guest_com, cage_com) for cage_com in cages_com ]
             # guest is in cage with minimum distance to centre of mass
             # this gives cage number, counting from 1 rather than 0
-            in_cage = distances.index(min(distances)) + 1
-
-            x, y, z = guest_com
-
-            towrite = " ".join([str(step[i]), str(x), str(y), str(z), str(in_cage)]) + "\n"
-
-            #with open(OUT, "a") as output:
-            output.write(towrite)
-
+            
+            in_cage.append(distances.index(min(distances)) + 1)
+            com.append(guest_com)
             done = str(round(((i+1)/steps)*100, 1))
             print(done+"% done\r", end="", flush=True)
 
+    return com, in_cage
+
+def main():
+    # print("Number of guest molecules: ", end="", flush=True)
+    # GUESTS = int(input())
+    # print("Number of atoms per guest: ", end="", flush=True)
+    # GUEST_ATOMS = int(input())
+
+    # if GUESTS != 1 or GUEST_ATOMS < 1:
+    #     print("Main function of this program only prints centre of mass of a single guest molecule.")
+    #     return 1
+
+    parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.")
+    parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules")
+    parser.add_argument("-g", "--guest_atoms", type=int, default=0, help="Number of atoms in each guest")
+    parser.add_argument("-o", "--output", default="guest_motion.txt", help="File name for guest motion output (default = 'guest_motion.txt'")
+    # parser.add_argument("-c", "--com", action="store_true", help="Print guest centres of mass in output file")
+    # parser.add_argument("-i", "--in_cage", action="store_true", help="Print which cage the guest is in in output file")
+    # parser.add_argument("-m", "--msd", action="store_true", help="Print mean square displacement in output file")
+    # parser.add_argument("-p", "--pores", action="store_true", help="Print all pore radii in own file")
+    # parser.add_argument("-w", "--windows", action="store_true", help="Print all window radii in own file")
+    parser.add_argument("task", nargs="+", help="""Task(s) to run, choose from:
+        com (print guest centres of mass);
+        cage (print which cage the guest is in);
+        msd (print mean square displacement);
+        pores (print all pore radii in own file);
+        windows (print all window radii in own file).""")
+    args = parser.parse_args()
+
+    tasks = [task for task in ["com", "cage", "msd", "pores", "windows"] if task in args.task]
+    if len(tasks) == 0:
+        print("Error: no valid task selected.\nPlease choose from: com, cage, msd, pores, windows")
+        return 1
+
+    print("Success!")
     return 0
 
 if __name__ == "__main__":
