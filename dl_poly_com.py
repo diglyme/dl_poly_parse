@@ -223,7 +223,7 @@ def pull_data():
     atom_type = []
     atom_mass = []
     box = []
-    atoms_per = CAGE_ATOMS + CAGES + GUEST_ATOMS + GUESTS
+    atoms_per = CAGE_ATOMS * CAGES + GUEST_ATOMS * GUESTS
 
     print("Reading HISTORY file... ", end="", flush=True)
     with open(HISTORY, "r") as histfile:
