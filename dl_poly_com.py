@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from numpy import array, empty, fromiter, where, square, sqrt, concatenate
+from progressbar import ProgressBar
 import pdb
 import argparse
 
@@ -224,7 +225,7 @@ def pull_data():
     atom_type = []
     atom_mass = []
     box = []
-    atoms_per = CAGE_ATOMS + CAGES + GUEST_ATOMS + GUESTS
+    atoms_per = CAGE_ATOMS * CAGES + GUEST_ATOMS * GUESTS
 
     print("Reading HISTORY file... ", end="", flush=True)
     with open(HISTORY, "r") as histfile:
@@ -240,6 +241,7 @@ def pull_data():
     z = empty(tot_atoms, "float")
 
     print("Extracting data from file...")
+    pbar = ProgressBar(maxval=num_lines).start()
     for i, line in enumerate(lines):
         #print(line)
         l = line.split()
@@ -270,12 +272,12 @@ def pull_data():
 
         else: atom = False
 
-        debug = False
+        pbar.update(i+1)
 
-        done = str(round(((i+1)/num_lines)*100, 1))
-        print(done+"% done\r", end="", flush=True)
+        # done = str(round(((i+1)/num_lines)*100, 1))
+        # print(done+"% done\r", end="", flush=True)
 
-
+    pbar.finish()
     print("Cleaning up raw file data.")
     lines = None
 
@@ -363,14 +365,9 @@ def main():
     #     return 1
 
     parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.")
-    parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules")
-    parser.add_argument("-g", "--guest_atoms", type=int, default=0, help="Number of atoms in each guest")
+    parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules (default = 0)")
+    parser.add_argument("-g", "--guest_atoms", type=int, default=1, help="Number of atoms in each guest (default = 0)")
     parser.add_argument("-o", "--output", default="guest_motion.txt", help="File name for guest motion output (default = 'guest_motion.txt'")
-    # parser.add_argument("-c", "--com", action="store_true", help="Print guest centres of mass in output file")
-    # parser.add_argument("-i", "--in_cage", action="store_true", help="Print which cage the guest is in in output file")
-    # parser.add_argument("-m", "--msd", action="store_true", help="Print mean square displacement in output file")
-    # parser.add_argument("-p", "--pores", action="store_true", help="Print all pore radii in own file")
-    # parser.add_argument("-w", "--windows", action="store_true", help="Print all window radii in own file")
     parser.add_argument("task", nargs="+", help="""Task(s) to run, choose from:
         com (print guest centres of mass);
         cage (print which cage the guest is in);
@@ -383,6 +380,12 @@ def main():
     if len(tasks) == 0:
         print("Error: no valid task selected.\nPlease choose from: com, cage, msd, pores, windows")
         return 1
+
+    if ("com" in tasks or "cage" in tasks or "msd" in tasks) and (args.guests == 0 or args.guest_atoms == 0):
+        print("Error: com, cage and msd tasks can only be performed when guest molecules are present")
+        return 1
+
+    frame = pull_data()
 
     print("Success!")
     return 0
