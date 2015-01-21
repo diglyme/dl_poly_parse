@@ -225,58 +225,60 @@ def pull_data():
     box = []
     atoms_per = CAGE_ATOMS + CAGES + GUEST_ATOMS + GUESTS
 
-    print("Reading HISTORY file... ", end="", flush=True)
+    # print("Reading HISTORY file... ", end="", flush=True)
+    # with open(HISTORY, "r") as histfile:
+    #     lines = histfile.readlines()
+    # print("done!")
+    # num_lines = len(lines)
     with open(HISTORY, "r") as histfile:
-        lines = histfile.readlines()
-    print("done!")
-    num_lines = len(lines)
+        num_lines = sum(1 for l in histfile)
+        histfile.seek(0)
+        tot_atoms = sum(1 for l in histfile if len(l) == 43)
+        histfile.seek(0)
 
-    tot_atoms = sum(1 for l in lines if len(l) == 43)
-    #print(tot_atoms)
+        x = empty(tot_atoms, "float")
+        y = empty(tot_atoms, "float")
+        z = empty(tot_atoms, "float")
 
-    x = empty(tot_atoms, "float")
-    y = empty(tot_atoms, "float")
-    z = empty(tot_atoms, "float")
+        print("Extracting data from file...")
+        for i, line in enumerate(histfile):
+            #print(line)
+            l = line.split()
 
-    print("Extracting data from file...")
-    for i, line in enumerate(lines):
-        #print(line)
-        l = line.split()
+            # if len(step) > 0:
+            #     if step[-1] == 86000: debug = True
 
-        # if len(step) > 0:
-        #     if step[-1] == 86000: debug = True
+            if "timestep" in l:
+                timestep += 1
+                step.append(int(l[1]))
+                if timestep > 1: init = False
 
-        if "timestep" in l:
-            timestep += 1
-            step.append(int(l[1]))
-            if timestep > 1: init = False
+            elif len(l) == 4:
+                atom = True
+                if init:
+                    atom_type.append(l[0])
+                    atom_mass.append(float(l[2]))
 
-        elif len(l) == 4:
-            atom = True
-            if init:
-                atom_type.append(l[0])
-                atom_mass.append(float(l[2]))
+            elif len(l) == 3 and atom:
+                x[atom_num] = float(l[0])
+                y[atom_num] = float(l[1])
+                z[atom_num] = float(l[2])
+                atom_num += 1
+                atom = False
 
-        elif len(l) == 3 and atom:
-            x[atom_num] = float(l[0])
-            y[atom_num] = float(l[1])
-            z[atom_num] = float(l[2])
-            atom_num += 1
-            atom = False
+            elif len(l) == 3 and len(box) < timestep:
+                box.append(float(l[0]))
 
-        elif len(l) == 3 and len(box) < timestep:
-            box.append(float(l[0]))
+            else: atom = False
 
-        else: atom = False
+            debug = False
 
-        debug = False
-
-        done = str(round(((i+1)/num_lines)*100, 1))
-        print(done+"% done\r", end="", flush=True)
+            done = str(round(((i+1)/num_lines)*100, 1))
+            print(done+"% done\r", end="", flush=True)
 
 
-    print("Cleaning up raw file data.")
-    lines = None
+    # print("Cleaning up raw file data.")
+    # lines = None
 
     print("Creating cage and guest objects...")
     cage_type = atom_type[:CAGE_ATOMS]
