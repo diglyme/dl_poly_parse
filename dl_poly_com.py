@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from numpy import array, empty, fromiter, where, square, sqrt, concatenate
+from numpy import array, empty, fromiter, where, square, sqrt, concatenate, average
 import pdb
 
 # input and output files
@@ -306,7 +306,7 @@ def visualise(frame, begin, stop):
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
 
-def square_displacement(frame, g=0):
+def msd(frame, g=0):
     disps = []
     for i, f in enumerate(frame[1:]):
         curr_x, curr_y, curr_z = f["guest"][g].centre_of_mass()
@@ -333,6 +333,29 @@ def square_displacement(frame, g=0):
 
         disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
 
+    tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
+    return [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
+
+def in_cage(frame, g=0):
+    in_cage = []
+    for i, f in enumerate(frame):
+        # calculate com for each cage in frame
+        cages_com = [ c.centre_of_mass(periodic=True) for c in f["cage"] ]
+        guest_com = f["guest"][g].centre_of_mass()
+
+        # square_displacement.append(square(distance(guest_start, guest_com)))
+        # msd = sum(square_displacement) / len(square_displacement)
+
+        distances = [ distance(guest_com, com) for com in cages_com ]
+        # guest is in cage with minimum distance to centre of mass
+        # this gives cage number, counting from 1 rather than 0
+        in_cage.append(distances.index(min(distances)) + 1)
+
+    return in_cage
+
+def guest_centres(frame, g=0):
+    return [f["guest"][g].centre_of_mass() for f in frame]
+
 def main():
     print("Number of guest molecules: ", end="", flush=True)
     GUESTS = int(input())
@@ -356,7 +379,7 @@ def main():
     with open(OUT, "a") as output:
         for i, f in enumerate(frame):
             # calculate com for each cage in frame
-            cages_com = [ c.centre_of_mass() for c in f["cage"] ]
+            cages_com = [ c.centre_of_mass(periodic=True) for c in f["cage"] ]
             guest_com = f["guest"][0].centre_of_mass()
 
             # square_displacement.append(square(distance(guest_start, guest_com)))
