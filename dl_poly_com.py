@@ -60,32 +60,6 @@ class Cage:
         pass
         
     def centre_of_mass(self, periodic=False):
-        # # create temporary coordinates that can exceed unit cell for CoM calculation
-        # tmp_x = self.x
-        # tmp_y = self.y
-        # tmp_z = self.z
-        # for i in range(self.atoms-1):
-        #     xdiff = self.x[i+1] - self.x[0]
-        #     ydiff = self.y[i+1] - self.y[0]
-        #     zdiff = self.z[i+1] - self.z[0]
-
-        #     # if distances between atom 0 and atom i are physically unreasonable
-        #     # change coordinates of atom i to bring it close to atom 0
-        #     if abs(xdiff) > box[self.n]/2 and xdiff < 0:
-        #         tmp_x[i+1] += box[self.n]
-        #     if abs(xdiff) > box[self.n]/2 and xdiff > 0:
-        #         tmp_x[i+1] -= box[self.n]
-
-        #     if abs(ydiff) > box[self.n]/2 and ydiff < 0:
-        #         tmp_y[i+1] += box[self.n]
-        #     if abs(ydiff) > box[self.n]/2 and ydiff > 0:
-        #         tmp_y[i+1] -= box[self.n]
-
-        #     if abs(zdiff) > box[self.n]/2 and zdiff < 0:
-        #         tmp_z[i+1] += box[self.n]
-        #     if abs(zdiff) > box[self.n]/2 and zdiff > 0:
-        #         tmp_z[i+1] -= box[self.n]
-
         # use moved coordinates to calculate centre of mass
         com_x = sum(cage_mass*self.per_x)/sum(cage_mass)
         com_y = sum(cage_mass*self.per_y)/sum(cage_mass)
@@ -331,6 +305,33 @@ def visualise(frame, begin, stop):
 
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
+
+def square_displacement(frame, g=0):
+    disps = []
+    for i, f in enumerate(frame[1:]):
+        curr_x, curr_y, curr_z = f["guest"][g].centre_of_mass()
+        prev_x, prev_y, prev_z = frame[i-1]["guest"][g].centre_of_mass()
+
+        xdiff = curr_x - prev_x
+        ydiff = curr_y - prev_y
+        zdiff = curr_z - prev_z
+
+        if abs(xdiff) > box[i-1]/2 and xdiff < 0:
+            curr_x += box[i-1]
+        if abs(xdiff) > box[i-1]/2 and xdiff > 0:
+            curr_x -= box[i-1]
+
+        if abs(ydiff) > box[i-1]/2 and ydiff < 0:
+            curr_y += box[i]
+        if abs(ydiff) > box[i-1]/2 and ydiff > 0:
+            curr_y -= box[i-1]
+
+        if abs(zdiff) > box[i-1]/2 and zdiff < 0:
+            curr_z += box[i-1]
+        if abs(zdiff) > box[i-1]/2 and zdiff > 0:
+            curr_z -= box[i-1]
+
+        disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
 
 def main():
     print("Number of guest molecules: ", end="", flush=True)
