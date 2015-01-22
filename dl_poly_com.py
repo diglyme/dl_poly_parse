@@ -60,32 +60,6 @@ class Cage:
         pass
         
     def centre_of_mass(self, periodic=False):
-        # # create temporary coordinates that can exceed unit cell for CoM calculation
-        # tmp_x = self.x
-        # tmp_y = self.y
-        # tmp_z = self.z
-        # for i in range(self.atoms-1):
-        #     xdiff = self.x[i+1] - self.x[0]
-        #     ydiff = self.y[i+1] - self.y[0]
-        #     zdiff = self.z[i+1] - self.z[0]
-
-        #     # if distances between atom 0 and atom i are physically unreasonable
-        #     # change coordinates of atom i to bring it close to atom 0
-        #     if abs(xdiff) > box[self.n]/2 and xdiff < 0:
-        #         tmp_x[i+1] += box[self.n]
-        #     if abs(xdiff) > box[self.n]/2 and xdiff > 0:
-        #         tmp_x[i+1] -= box[self.n]
-
-        #     if abs(ydiff) > box[self.n]/2 and ydiff < 0:
-        #         tmp_y[i+1] += box[self.n]
-        #     if abs(ydiff) > box[self.n]/2 and ydiff > 0:
-        #         tmp_y[i+1] -= box[self.n]
-
-        #     if abs(zdiff) > box[self.n]/2 and zdiff < 0:
-        #         tmp_z[i+1] += box[self.n]
-        #     if abs(zdiff) > box[self.n]/2 and zdiff > 0:
-        #         tmp_z[i+1] -= box[self.n]
-
         # use moved coordinates to calculate centre of mass
         com_x = sum(cage_mass*self.per_x)/sum(cage_mass)
         com_y = sum(cage_mass*self.per_y)/sum(cage_mass)
@@ -225,58 +199,60 @@ def pull_data():
     box = []
     atoms_per = CAGE_ATOMS * CAGES + GUEST_ATOMS * GUESTS
 
-    print("Reading HISTORY file... ", end="", flush=True)
+    # print("Reading HISTORY file... ", end="", flush=True)
+    # with open(HISTORY, "r") as histfile:
+    #     lines = histfile.readlines()
+    # print("done!")
+    # num_lines = len(lines)
     with open(HISTORY, "r") as histfile:
-        lines = histfile.readlines()
-    print("done!")
-    num_lines = len(lines)
+        num_lines = sum(1 for l in histfile)
+        histfile.seek(0)
+        tot_atoms = sum(1 for l in histfile if len(l) == 43)
+        histfile.seek(0)
 
-    tot_atoms = sum(1 for l in lines if len(l) == 43)
-    #print(tot_atoms)
+        x = empty(tot_atoms, "float")
+        y = empty(tot_atoms, "float")
+        z = empty(tot_atoms, "float")
 
-    x = empty(tot_atoms, "float")
-    y = empty(tot_atoms, "float")
-    z = empty(tot_atoms, "float")
+        print("Extracting data from file...")
+        for i, line in enumerate(histfile):
+            #print(line)
+            l = line.split()
 
-    print("Extracting data from file...")
-    for i, line in enumerate(lines):
-        #print(line)
-        l = line.split()
+            # if len(step) > 0:
+            #     if step[-1] == 86000: debug = True
 
-        # if len(step) > 0:
-        #     if step[-1] == 86000: debug = True
+            if "timestep" in l:
+                timestep += 1
+                step.append(int(l[1]))
+                if timestep > 1: init = False
 
-        if "timestep" in l:
-            timestep += 1
-            step.append(int(l[1]))
-            if timestep > 1: init = False
+            elif len(l) == 4:
+                atom = True
+                if init:
+                    atom_type.append(l[0])
+                    atom_mass.append(float(l[2]))
 
-        elif len(l) == 4:
-            atom = True
-            if init:
-                atom_type.append(l[0])
-                atom_mass.append(float(l[2]))
+            elif len(l) == 3 and atom:
+                x[atom_num] = float(l[0])
+                y[atom_num] = float(l[1])
+                z[atom_num] = float(l[2])
+                atom_num += 1
+                atom = False
 
-        elif len(l) == 3 and atom:
-            x[atom_num] = float(l[0])
-            y[atom_num] = float(l[1])
-            z[atom_num] = float(l[2])
-            atom_num += 1
-            atom = False
+            elif len(l) == 3 and len(box) < timestep:
+                box.append(float(l[0]))
 
-        elif len(l) == 3 and len(box) < timestep:
-            box.append(float(l[0]))
+            else: atom = False
 
-        else: atom = False
+            debug = False
 
-        debug = False
-
-        done = str(round(((i+1)/num_lines)*100, 1))
-        print(done+"% done\r", end="", flush=True)
+            done = str(round(((i+1)/num_lines)*100, 1))
+            print(done+"% done\r", end="", flush=True)
 
 
-    print("Cleaning up raw file data.")
-    lines = None
+    # print("Cleaning up raw file data.")
+    # lines = None
 
     print("Creating cage and guest objects...")
     cage_type = atom_type[:CAGE_ATOMS]
@@ -329,6 +305,33 @@ def visualise(frame, begin, stop):
 
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
+
+def square_displacement(frame, g=0):
+    disps = []
+    for i, f in enumerate(frame[1:]):
+        curr_x, curr_y, curr_z = f["guest"][g].centre_of_mass()
+        prev_x, prev_y, prev_z = frame[i-1]["guest"][g].centre_of_mass()
+
+        xdiff = curr_x - prev_x
+        ydiff = curr_y - prev_y
+        zdiff = curr_z - prev_z
+
+        if abs(xdiff) > box[i-1]/2 and xdiff < 0:
+            curr_x += box[i-1]
+        if abs(xdiff) > box[i-1]/2 and xdiff > 0:
+            curr_x -= box[i-1]
+
+        if abs(ydiff) > box[i-1]/2 and ydiff < 0:
+            curr_y += box[i]
+        if abs(ydiff) > box[i-1]/2 and ydiff > 0:
+            curr_y -= box[i-1]
+
+        if abs(zdiff) > box[i-1]/2 and zdiff < 0:
+            curr_z += box[i-1]
+        if abs(zdiff) > box[i-1]/2 and zdiff > 0:
+            curr_z -= box[i-1]
+
+        disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
 
 def main():
     print("Number of guest molecules: ", end="", flush=True)
