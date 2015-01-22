@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from numpy import array, empty, fromiter, where, square, sqrt, concatenate average
+from numpy import array, empty, fromiter, where, square, sqrt, concatenate, average
 from progressbar import ProgressBar
 import pdb
 import argparse
@@ -18,8 +18,8 @@ WINDOW = [(2, 100, 142), (16, 72, 128), (30, 58, 156), (44, 86, 114)]
 
 VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
 
-GUEST_ATOMS = 1
-GUESTS = 1
+guest_atoms = 1
+guest_num = 1
 
 class Cage:
     def __init__(self, n, x, y, z):
@@ -126,10 +126,7 @@ class Guest:
 
     def centre_of_mass(self):
         if self.atoms == 1:
-            com_x = sum(self.mass*self.x)/sum(self.mass)
-            com_y = sum(self.mass*self.y)/sum(self.mass)
-            com_z = sum(self.mass*self.z)/sum(self.mass)
-            return (com_x, com_y, com_z)
+            return (float(self.x), float(self.y), float(self.z))
 
         else:
             # create temporary coordinates that can exceed unit cell for CoM calculation
@@ -189,7 +186,7 @@ def get_lines():
     print("done.")
     return lines
 
-def pull_data():
+def pull_data(guest_num, guest_atoms, is_guest):
     global steps, box, step, cage_type, cage_mass
     timestep = 0
     init = True
@@ -199,7 +196,7 @@ def pull_data():
     atom_type = []
     atom_mass = []
     box = []
-    atoms_per = CAGE_ATOMS * CAGES + GUEST_ATOMS * GUESTS
+    atoms_per = CAGE_ATOMS * CAGES + guest_atoms * guest_num
 
     # print("Reading HISTORY file... ", end="", flush=True)
     # with open(HISTORY, "r") as histfile:
@@ -207,18 +204,23 @@ def pull_data():
     # print("done!")
     # num_lines = len(lines)
     with open(HISTORY, "r") as histfile:
+        print("Counting size of file... ", end="", flush=True)
         num_lines = sum(1 for l in histfile)
         histfile.seek(0)
+        print("done! (%i lines)" % (num_lines))
+
+        print("Counting number of atoms... ", end="", flush=True)
         tot_atoms = sum(1 for l in histfile if len(l) == 43)
         histfile.seek(0)
+        print("done! (%i atoms)" % (tot_atoms))
 
         x = empty(tot_atoms, "float")
         y = empty(tot_atoms, "float")
         z = empty(tot_atoms, "float")
 
-        print("Extracting data from file...")
+        print("\nExtracting data from file...")
+        filebar = ProgressBar(maxval=num_lines).start()
         for i, line in enumerate(histfile):
-            pbar = ProgressBar(maxval=num_lines).start()
             l = line.split()
 
             if "timestep" in l:
@@ -244,44 +246,48 @@ def pull_data():
 
             else: atom = False
 
-            pbar.update(i+1)
+            filebar.update(i+1)
 
-    pbar.finish()
-    print("Cleaning up raw file data.")
-    lines = None
+    filebar.finish()
+    steps = len(step)
 
-    print("Creating cage and guest objects...")
+
+    print("\nCreating cage %sobjects..." % ("and guest "*is_guest))
+    objbar = ProgressBar(maxval=steps).start()
     cage_type = atom_type[:CAGE_ATOMS]
     cage_mass = fromiter(atom_mass[:CAGE_ATOMS], "float", CAGE_ATOMS)
-    guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS]
-    guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+GUEST_ATOMS], "float", GUEST_ATOMS)
+    if is_guest:
+        guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms]
+        guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms], "float", guest_atoms)
 
     frame = []
-    steps = len(step)
 
     for i in range(steps):
         start = i*atoms_per
         end = (i+1)*atoms_per
 
         cages = []
-        guests = []
 
         for j in range(CAGES):
             cage_start = start + j * CAGE_ATOMS
             cage_end = start + (j+1) * CAGE_ATOMS
             cages.append(Cage(i, x[cage_start:cage_end], y[cage_start:cage_end], z[cage_start:cage_end]))
 
-        for j in range(GUESTS):
-            guest_start = start + (CAGE_ATOMS+CAGES) + j * GUEST_ATOMS
-            guest_end = start + (CAGE_ATOMS+CAGES) + (j+1) * GUEST_ATOMS
-            guests.append(Guest(i, x[guest_start:guest_end], y[guest_start:guest_end], z[guest_start:guest_end], guest_type, guest_mass))
+        if is_guest:
+            guests = []
+            for j in range(guest_num):
+                guest_start = start + (CAGE_ATOMS*CAGES) + j * guest_atoms
+                guest_end = start + (CAGE_ATOMS*CAGES) + (j+1) * guest_atoms
+                guests.append(Guest(i, x[guest_start:guest_end], y[guest_start:guest_end], z[guest_start:guest_end], guest_type, guest_mass))
 
-        frame.append({"cage": cages, "guest": guests})
+            frame.append({"cage": cages, "guest": guests})
+        else:
+            frame.append({"cage": cages})
 
-        done = str(round(((i+1)/steps)*100, 1))
-        print(done+"% done\r", end="", flush=True)
+        objbar.update(i+1)
 
-    print("All data extracted!")
+    objbar.finish()
+    print("All data extracted!\n")
     return frame
 
 def distance(coords1, coords2):
@@ -302,7 +308,9 @@ def visualise(frame, begin, stop):
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
 
-def msd(frame, g=0):
+def msd(frame, begin_at, g=0):
+    print("Finding mean square displacement of guest %i..." % (g+1))
+    pbar = ProgressBar(maxval=len(frame)).start()
     disps = []
     for i, f in enumerate(frame[1:]):
         curr_x, curr_y, curr_z = f["guest"][g].centre_of_mass()
@@ -312,27 +320,32 @@ def msd(frame, g=0):
         ydiff = curr_y - prev_y
         zdiff = curr_z - prev_z
 
-        if abs(xdiff) > box[i-1]/2 and xdiff < 0:
-            curr_x += box[i-1]
-        if abs(xdiff) > box[i-1]/2 and xdiff > 0:
-            curr_x -= box[i-1]
+        if abs(xdiff) > box[i+begin_at-1]/2 and xdiff < 0:
+            curr_x += box[i+begin_at-1]
+        if abs(xdiff) > box[i+begin_at-1]/2 and xdiff > 0:
+            curr_x -= box[i+begin_at-1]
 
-        if abs(ydiff) > box[i-1]/2 and ydiff < 0:
-            curr_y += box[i]
-        if abs(ydiff) > box[i-1]/2 and ydiff > 0:
-            curr_y -= box[i-1]
+        if abs(ydiff) > box[i+begin_at-1]/2 and ydiff < 0:
+            curr_y += box[i+begin_at-1]
+        if abs(ydiff) > box[i+begin_at-1]/2 and ydiff > 0:
+            curr_y -= box[i+begin_at-1]
 
-        if abs(zdiff) > box[i-1]/2 and zdiff < 0:
-            curr_z += box[i-1]
-        if abs(zdiff) > box[i-1]/2 and zdiff > 0:
-            curr_z -= box[i-1]
+        if abs(zdiff) > box[i+begin_at-1]/2 and zdiff < 0:
+            curr_z += box[i+begin_at-1]
+        if abs(zdiff) > box[i+begin_at-1]/2 and zdiff > 0:
+            curr_z -= box[i+begin_at-1]
 
         disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
+        pbar.update(i+1)
 
     tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
-    return [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
+    msd = [0.0] + [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
+    pbar.finish()
+    return msd
 
 def in_cage(frame, g=0):
+    print("Calculating cages guest %i has travelled through..." % (g+1))
+    pbar = ProgressBar(maxval=len(frame)).start()
     in_cage = []
     for i, f in enumerate(frame):
         # calculate com for each cage in frame
@@ -347,24 +360,27 @@ def in_cage(frame, g=0):
         # this gives cage number, counting from 1 rather than 0
         in_cage.append(distances.index(min(distances)) + 1)
 
+        pbar.update(i+1)
+
+    pbar.finish()
     return in_cage
 
 def guest_centres(frame, g=0):
-    return [f["guest"][g].centre_of_mass() for f in frame]
+    print("Finding guest %i centres of mass... " % (g+1))
+    coms = []
+    pbar = ProgressBar(maxval=len(frame)).start()
+    for i, f in enumerate(frame):
+        coms.append(f["guest"][g].centre_of_mass())
+        pbar.update(i+1)
+    pbar.finish()
+    return coms
+
 
 def main():
-    # print("Number of guest molecules: ", end="", flush=True)
-    # GUESTS = int(input())
-    # print("Number of atoms per guest: ", end="", flush=True)
-    # GUEST_ATOMS = int(input())
-
-    # if GUESTS != 1 or GUEST_ATOMS < 1:
-    #     print("Main function of this program only prints centre of mass of a single guest molecule.")
-    #     return 1
-
-    parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.")
+    parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.", epilog="WARNING: currently may do strange things for multiple guests.")
     parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules (default = 0)")
-    parser.add_argument("-g", "--guest_atoms", type=int, default=1, help="Number of atoms in each guest (default = 0)")
+    parser.add_argument("-g", "--guest_atoms", type=int, default=1, help="Number of atoms in each guest (default = 1)")
+    parser.add_argument("-e", "--equilib", type=int, default=0, help="Number of equilibriation steps to skip before calculating (default = 0)")
     parser.add_argument("-o", "--output", default="guest_motion.txt", help="File name for guest motion output (default = 'guest_motion.txt'")
     parser.add_argument("task", nargs="+", help="""Task(s) to run, choose from:
         com (print guest centres of mass);
@@ -379,13 +395,51 @@ def main():
         print("Error: no valid task selected.\nPlease choose from: com, cage, msd, pores, windows")
         return 1
 
-    if ("com" in tasks or "cage" in tasks or "msd" in tasks) and (args.guests == 0 or args.guest_atoms == 0):
-        print("Error: com, cage and msd tasks can only be performed when guest molecules are present")
-        return 1
+    # THIS VARIABLE CHANGE FOR TESTING PURPOSES ONLY!
+    # tasks = ["com", "cage", "msd", "pores", "windows"]
 
-    frame = pull_data()
+    if "com" in tasks or "cage" in tasks or "msd" in tasks:
+        is_guest = True
+        if args.guests == 0  or args.guest_atoms == 0:
+            print("Error: com, cage and msd tasks can only be performed when guest molecules are present (did you forget to set the number of guests?)")
+            return 1
 
-    print("Success!")
+    frame = pull_data(args.guests, args.guest_atoms, is_guest)
+
+    # find first recorded step after equilibriation
+    begin_at = step.index(next(s for s in step if s > args.equilib))
+
+    if "windows" in tasks:
+        pass
+
+    if "pores" in tasks:
+        pass
+
+    output_data = [[str(s) for s in step[begin_at:]]]
+
+    if "com" in tasks:
+        guest_coms = guest_centres(frame[begin_at:])
+        str_coms = []
+        for com in guest_coms:
+            x, y, z = com
+            str_coms.append(" ".join([str(x),str(y),str(z)]))
+        output_data.append(str_coms)
+
+    if "cage" in tasks:
+        output_data.append([str(c) for c in in_cage(frame[begin_at:])])
+
+    if "msd" in tasks:
+        output_data.append([str(m) for m in msd(frame[begin_at:], begin_at)])
+
+    if len(output_data) > 1:
+        towrite = "Step " + "X Y Z "*("com" in tasks) + "In_cage "*("cage" in tasks) + "Mean_Square_Displacement"*("msd" in tasks) + "\n"
+
+        for i in range(len(output_data[0])):
+            towrite += " ".join( [ output_data[j][i] for j in range(len(output_data)) ] ) + "\n"
+
+        with open(args.output, "w") as output_file:
+            output_file.write(towrite)
+
     return 0
 
 if __name__ == "__main__":
