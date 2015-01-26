@@ -287,7 +287,7 @@ def pull_data(guest_num, guest_atoms, is_guest):
         objbar.update(i+1)
 
     objbar.finish()
-    print("All data extracted!\n")
+    print("All data extracted!")
     return frame
 
 def distance(coords1, coords2):
@@ -308,8 +308,32 @@ def visualise(frame, begin, stop):
         with open("centres.xyz", "a") as centresfile:
             centresfile.write(towrite)
 
-def msd(frame, begin_at, g=0):
-    print("Finding mean square displacement of guest %i..." % (g+1))
+def get_windows(frame):
+    print("\nFinding all window radii...")
+    pbar = ProgressBar(maxval=len(frame)).start()
+    windows = []
+    for i, f in enumerate(frame):
+        for c in f["cage"]:
+            for w in c.window_radii():
+                windows.append(w)
+        pbar.update(i+1)
+    pbar.finish()
+    return windows
+
+def get_pores(frame):
+    print("\nFinding all pore radii...")
+    pbar = ProgressBar(maxval=len(frame)).start()
+    pores = []
+    for i, f in enumerate(frame):
+        for c in f["cage"]:
+            pores.append(c.pore_radius())
+        pbar.update(i+1)
+    pbar.finish()
+    return pores
+
+
+def msd(frame, begin_at, g=0): # this doesn't actually give MSD, needs fixing!
+    print("\nFinding mean square displacement of guest %i..." % (g+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     disps = []
     for i, f in enumerate(frame[1:]):
@@ -344,7 +368,7 @@ def msd(frame, begin_at, g=0):
     return msd
 
 def in_cage(frame, g=0):
-    print("Calculating cages guest %i has travelled through..." % (g+1))
+    print("\nCalculating cages guest %i has travelled through..." % (g+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     in_cage = []
     for i, f in enumerate(frame):
@@ -366,7 +390,7 @@ def in_cage(frame, g=0):
     return in_cage
 
 def guest_centres(frame, g=0):
-    print("Finding guest %i centres of mass... " % (g+1))
+    print("\nFinding guest %i centres of mass... " % (g+1))
     coms = []
     pbar = ProgressBar(maxval=len(frame)).start()
     for i, f in enumerate(frame):
@@ -403,6 +427,8 @@ def main():
         if args.guests == 0  or args.guest_atoms == 0:
             print("Error: com, cage and msd tasks can only be performed when guest molecules are present (did you forget to set the number of guests?)")
             return 1
+    else:
+        is_guest = False
 
     frame = pull_data(args.guests, args.guest_atoms, is_guest)
 
@@ -410,10 +436,18 @@ def main():
     begin_at = step.index(next(s for s in step if s > args.equilib))
 
     if "windows" in tasks:
-        pass
+        windows = get_windows(frame[begin_at:])
+        print("Writing window radii... ", end="", flush=True)
+        with open("windows.txt", "w") as window_file:
+            window_file.write("\n".join([str(w) for w in windows]))
+        print("done!")
 
     if "pores" in tasks:
-        pass
+        pores = get_pores(frame[begin_at:])
+        print("Writing pore radii... ", end="", flush=True)
+        with open("pores.txt", "w") as pore_file:
+            pore_file.write("\n".join([str(p) for p in pores]))
+        print("done!")
 
     output_data = [[str(s) for s in step[begin_at:]]]
 
@@ -432,6 +466,7 @@ def main():
         output_data.append([str(m) for m in msd(frame[begin_at:], begin_at)])
 
     if len(output_data) > 1:
+        print("\nWriting output file... ", end="", flush=True)
         towrite = "Step " + "X Y Z "*("com" in tasks) + "In_cage "*("cage" in tasks) + "Mean_Square_Displacement"*("msd" in tasks) + "\n"
 
         for i in range(len(output_data[0])):
@@ -439,6 +474,7 @@ def main():
 
         with open(args.output, "w") as output_file:
             output_file.write(towrite)
+        print("done!")
 
     return 0
 
