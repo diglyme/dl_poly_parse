@@ -8,7 +8,11 @@ REVCON
 REVIVE
 REVOLD
 HISTORY
+run
 CoM*
+guest*motion.txt
+windows.txt
+pores.txt
 *.pdb
 *.xyz
 
