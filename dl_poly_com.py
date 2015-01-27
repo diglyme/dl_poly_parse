@@ -332,13 +332,13 @@ def get_pores(frame):
     return pores
 
 
-def msd(frame, begin_at, g=0): # this doesn't actually give MSD, needs fixing!
-    print("\nFinding mean square displacement of guest %i..." % (g+1))
+def msd(frame, begin_at, guest=0): # this doesn't actually give MSD, needs fixing!
+    print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     disps = []
     for i, f in enumerate(frame[1:]):
-        curr_x, curr_y, curr_z = f["guest"][g].centre_of_mass()
-        prev_x, prev_y, prev_z = frame[i-1]["guest"][g].centre_of_mass()
+        curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
+        prev_x, prev_y, prev_z = frame[i-1]["guest"][guest].centre_of_mass()
 
         xdiff = curr_x - prev_x
         ydiff = curr_y - prev_y
@@ -367,14 +367,14 @@ def msd(frame, begin_at, g=0): # this doesn't actually give MSD, needs fixing!
     pbar.finish()
     return msd
 
-def in_cage(frame, g=0):
-    print("\nCalculating cages guest %i has travelled through..." % (g+1))
+def in_cage(frame, guest=0):
+    print("\nCalculating cages guest %i has travelled through..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     in_cage = []
     for i, f in enumerate(frame):
         # calculate com for each cage in frame
         cages_com = [ c.centre_of_mass(periodic=True) for c in f["cage"] ]
-        guest_com = f["guest"][g].centre_of_mass()
+        guest_com = f["guest"][guest].centre_of_mass()
 
         # square_displacement.append(square(distance(guest_start, guest_com)))
         # msd = sum(square_displacement) / len(square_displacement)
@@ -389,12 +389,12 @@ def in_cage(frame, g=0):
     pbar.finish()
     return in_cage
 
-def guest_centres(frame, g=0):
-    print("\nFinding guest %i centres of mass... " % (g+1))
+def guest_centres(frame, guest=0):
+    print("\nFinding guest %i centres of mass... " % (guest+1))
     coms = []
     pbar = ProgressBar(maxval=len(frame)).start()
     for i, f in enumerate(frame):
-        coms.append(f["guest"][g].centre_of_mass())
+        coms.append(f["guest"][guest].centre_of_mass())
         pbar.update(i+1)
     pbar.finish()
     return coms
@@ -449,32 +449,38 @@ def main():
             pore_file.write("\n".join([str(p) for p in pores]))
         print("done!")
 
-    output_data = [[str(s) for s in step[begin_at:]]]
+    for g in range(args.guests):
+        output_data = [[str(s) for s in step[begin_at:]]]
 
-    if "com" in tasks:
-        guest_coms = guest_centres(frame[begin_at:])
-        str_coms = []
-        for com in guest_coms:
-            x, y, z = com
-            str_coms.append(" ".join([str(x),str(y),str(z)]))
-        output_data.append(str_coms)
+        if "com" in tasks:
+            guest_coms = guest_centres(frame[begin_at:], guest=g)
+            str_coms = []
+            for com in guest_coms:
+                x, y, z = com
+                str_coms.append(" ".join([str(x),str(y),str(z)]))
+            output_data.append(str_coms)
 
-    if "cage" in tasks:
-        output_data.append([str(c) for c in in_cage(frame[begin_at:])])
+        if "cage" in tasks:
+            output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
-    if "msd" in tasks:
-        output_data.append([str(m) for m in msd(frame[begin_at:], begin_at)])
+        if "msd" in tasks:
+            output_data.append([str(m) for m in msd(frame[begin_at:], begin_at)])
 
-    if len(output_data) > 1:
-        print("\nWriting output file... ", end="", flush=True)
-        towrite = "Step " + "X Y Z "*("com" in tasks) + "In_cage "*("cage" in tasks) + "Mean_Square_Displacement"*("msd" in tasks) + "\n"
+        if len(output_data) > 1:
+            if args.guests == 1:
+                output = args.output
+            else:
+                output = "guest_" + str(g+1) + "_motion.txt"
 
-        for i in range(len(output_data[0])):
-            towrite += " ".join( [ output_data[j][i] for j in range(len(output_data)) ] ) + "\n"
+            print("\nWriting output file... ", end="", flush=True)
+            towrite = "Step " + "X Y Z "*("com" in tasks) + "In_cage "*("cage" in tasks) + "Mean_Square_Displacement"*("msd" in tasks) + "\n"
 
-        with open(args.output, "w") as output_file:
-            output_file.write(towrite)
-        print("done!")
+            for i in range(len(output_data[0])):
+                towrite += " ".join([output_data[j][i] for j in range(len(output_data))]) + "\n"
+
+            with open(output, "w") as output_file:
+                output_file.write(towrite)
+            print("done!")
 
     return 0
 
