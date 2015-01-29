@@ -24,7 +24,7 @@ def get_headers(lines):
     "Returns output data headers, solving the problem of one of them including a space."
     headers = lines[2].split() + lines[3].split() + lines[4].split()
     headers.remove("(s)")
-    headers[headers.index("cpu")] = "cpu (s)"
+    headers[headers.index("cpu")] = "cpu(s)"
     return headers
 
 
