@@ -11,44 +11,41 @@
 #  * functions to get rolling and total averages
 
 OUTPUT = "OUTPUT"
-PARSED = "PARSED"
+PARSED = "parsed.txt"
 BREAK = " ------------------------------------------------------------------------------------------------------------------------\n"
 
-def getLines():
-    with open(OUTPUT, "r") as f:
-        lines = f.readlines()
-    return lines
+def get_lines():
+    "Returns lines from file truncated to tabulated output data only."
+    with open(OUTPUT, "r") as _file:
+        lines = _file.readlines()
+    return lines[lines.index(BREAK):]
 
-def getHeaders():
-    lines = getLines()
-    firstBreak = lines.index(BREAK)
-    headers = lines[firstBreak+2].split() + lines[firstBreak+3].split() + lines[firstBreak+4].split()
+def get_headers(lines):
+    "Returns output data headers, solving the problem of one of them including a space."
+    headers = lines[2].split() + lines[3].split() + lines[4].split()
     headers.remove("(s)")
     headers[headers.index("cpu")] = "cpu (s)"
     return headers
 
 
-def getProperty(prop):
-    lines = getLines()
-    headers = getHeaders()
-
-    # truncate from first BREAK
-    lines = lines[lines.index(BREAK):]
-
-    propIndex = headers.index(prop)
-    propList = []
+def get_property(lines, headers, prop):
+    "Returns all values of a named property as a list."
+    prop_index = headers.index(prop)
+    prop_list = []
 
     for i, l in enumerate(lines):
-        if l == BREAK and len(lines[i+1].split()) == 10:
+        if l == BREAK and len(lines[i+1]) == 118:
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
-            propList.append(values[propIndex])
+            prop_list.append(float(values[prop_index]))
 
-    return propList
+    return prop_list
 
-def sortList(unsorted):
-    # returns list reading down each column of 3 in OUTPUT rather than across each row
-    # this puts certain values usefully adjacent to each other e.g. time, step, cpu
-    # but separates others e.g. alpha, beta, gamma
+def sort_by_column(unsorted):
+    """
+    Returns list reading down each column of 3 in OUTPUT rather than across each row
+    this puts certain values usefully adjacent to each other e.g. time, step, cpu
+    but separates others e.g. alpha, beta, gamma.
+    """
     sort = []
     for i in range(0,len(unsorted)):
         triple = unsorted[i::10]
@@ -56,16 +53,15 @@ def sortList(unsorted):
             sort.append(j)
     return sort[:30]
 
-def getAllProps():
-    # returns physical properties as a huge list of lists
-
-    lines = getLines()
+def get_all_props(lines):
+    "Returns all properties as a list of lists, with same ordering as headers."
     properties = []
 
     for i, l in enumerate(lines):
-        if l == BREAK and len(lines[i+1].split()) == 10: # data always found in lines of 10 after BREAK
+        if l == BREAK and len(lines[i+1]) == 118: # data always found in lines of 10 after BREAK
+            print(l)
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
-            
+            print(values)
             if properties == []:    # fill with lists of initial values if empty
                 properties = [[float(v)] for v in values]
             else:                   # append otherwise
@@ -73,26 +69,27 @@ def getAllProps():
                     p.append(float(values[j]))
 
     return properties
-        # could optimise by initialising each list with zeroes
+ 
+def main():
+    lines = get_lines()
+    headers = get_headers(lines)
+    properties = get_all_props(lines)
+    tot_num = len(properties[0])
 
-def parse():
-    headers = getHeaders()
-    properties = getAllProps()
-    n = len(properties[0])
-    sortedHeaders = sortList(headers)
-    sortedProps = sortList(properties)
+    sorted_headers = sort_by_column(headers)
+    sorted_props = sort_by_column(properties)
 
     parsed = ""
-    for h in sortedHeaders:
+    for h in sorted_headers:
         parsed += "%-12s" % (h)
-    for i in range(0,n):
+    for i in range(tot_num):
         parsed += "\n"
-        for p in sortedProps:
+        for p in sorted_props:
             parsed += "%-11s " % (p[i])
 
 
-    with open(PARSED, "w") as f:
-        f.write(parsed)
+    with open(PARSED, "w") as _file:
+        _file.write(parsed)
 
 if __name__ == '__main__':
-    parse()
+    main()
