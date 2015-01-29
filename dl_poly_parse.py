@@ -38,7 +38,7 @@ def get_property(lines, headers, prop):
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
             prop_list.append(float(values[prop_index]))
 
-    return prop_list
+    return prop_list[:-1] # discard final item as it is the total average
 
 def sort_by_column(unsorted):
     """
@@ -59,16 +59,24 @@ def get_all_props(lines):
 
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118: # data always found in lines of 10 after BREAK
-            print(l)
+
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
-            print(values)
             if properties == []:    # fill with lists of initial values if empty
                 properties = [[float(v)] for v in values]
+                properties[0][0] = int(properties[0][0])
             else:                   # append otherwise
                 for j, p in enumerate(properties):
-                    p.append(float(values[j]))
+                    if j == 0: # the first value, step, is the only int
+                        p.append(int(values[j]))
+                    # final averages give ******** for some values, which throw ValueError
+                    # these are appended to the list as strings as they will later be discarded
+                    else:
+                        try:
+                            p.append(float(values[j]))
+                        except ValueError:
+                            p.append(values[j])
 
-    return properties
+    return [p[:-1] for p in properties] # discard final items as they are total averages
  
 def main():
     lines = get_lines()
