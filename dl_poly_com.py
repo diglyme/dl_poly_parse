@@ -35,25 +35,25 @@ class Cage:
         self.per_y = y
         self.per_z = z
         for i in range(self.atoms-1):
-            xdiff = self.x[i+1] - self.x[0]
-            ydiff = self.y[i+1] - self.y[0]
-            zdiff = self.z[i+1] - self.z[0]
+            x_diff = self.x[i+1] - self.x[0]
+            y_diff = self.y[i+1] - self.y[0]
+            z_diff = self.z[i+1] - self.z[0]
 
             # if distances between atom 0 and atom i are physically unreasonable
             # change coordinates of atom i to bring it close to atom 0
-            if abs(xdiff) > box[self.n]/2 and xdiff < 0:
+            if abs(x_diff) > box[self.n]/2 and x_diff < 0:
                 self.per_x[i+1] += box[self.n]
-            if abs(xdiff) > box[self.n]/2 and xdiff > 0:
+            if abs(x_diff) > box[self.n]/2 and x_diff > 0:
                 self.per_x[i+1] -= box[self.n]
 
-            if abs(ydiff) > box[self.n]/2 and ydiff < 0:
+            if abs(y_diff) > box[self.n]/2 and y_diff < 0:
                 self.per_y[i+1] += box[self.n]
-            if abs(ydiff) > box[self.n]/2 and ydiff > 0:
+            if abs(y_diff) > box[self.n]/2 and y_diff > 0:
                 self.per_y[i+1] -= box[self.n]
 
-            if abs(zdiff) > box[self.n]/2 and zdiff < 0:
+            if abs(z_diff) > box[self.n]/2 and z_diff < 0:
                 self.per_z[i+1] += box[self.n]
-            if abs(zdiff) > box[self.n]/2 and zdiff > 0:
+            if abs(z_diff) > box[self.n]/2 and z_diff > 0:
                 self.per_z[i+1] -= box[self.n]
 
     def per_position(self, index):
@@ -108,7 +108,6 @@ class Cage:
             windows.append(radius)
         return windows
 
-
     def largest_window(self):
         return max(self.window_radii())
 
@@ -135,25 +134,25 @@ class Guest:
             tmp_y = self.y
             tmp_z = self.z
             for i in range(self.atoms-1):
-                xdiff = self.x[i+1] - self.x[0]
-                ydiff = self.y[i+1] - self.y[0]
-                zdiff = self.z[i+1] - self.z[0]
+                x_diff = self.x[i+1] - self.x[0]
+                y_diff = self.y[i+1] - self.y[0]
+                z_diff = self.z[i+1] - self.z[0]
 
                 # if distances between atom 0 and atom i are physically unreasonable
                 # change coordinates of atom i to bring it close to atom 0
-                if abs(xdiff) > box[self.n]/2 and xdiff < 0:
+                if abs(x_diff) > box[self.n]/2 and x_diff < 0:
                     tmp_x[i+1] += box[self.n]
-                if abs(xdiff) > box[self.n]/2 and xdiff > 0:
+                if abs(x_diff) > box[self.n]/2 and x_diff > 0:
                     tmp_x[i+1] -= box[self.n]
 
-                if abs(ydiff) > box[self.n]/2 and ydiff < 0:
+                if abs(y_diff) > box[self.n]/2 and y_diff < 0:
                     tmp_y[i+1] += box[self.n]
-                if abs(ydiff) > box[self.n]/2 and ydiff > 0:
+                if abs(y_diff) > box[self.n]/2 and y_diff > 0:
                     tmp_y[i+1] -= box[self.n]
 
-                if abs(zdiff) > box[self.n]/2 and zdiff < 0:
+                if abs(z_diff) > box[self.n]/2 and z_diff < 0:
                     tmp_z[i+1] += box[self.n]
-                if abs(zdiff) > box[self.n]/2 and zdiff > 0:
+                if abs(z_diff) > box[self.n]/2 and z_diff > 0:
                     tmp_z[i+1] -= box[self.n]
 
             # use moved coordinates to calculate centre of mass
@@ -180,13 +179,6 @@ class Guest:
 
             return (com_x, com_y, com_z)
 
-def get_lines():
-    print("Reading HISTORY file... ", end="", flush=True)
-    with open(HISTORY, "r") as histfile:
-        lines = histfile.readlines()
-    print("done.")
-    return lines
-
 def pull_data(guest_num, guest_atoms, is_guest):
     global steps, box, step, cage_type, cage_mass
     timestep = 0
@@ -200,20 +192,15 @@ def pull_data(guest_num, guest_atoms, is_guest):
     frame = []
     atoms_per = CAGE_ATOMS * CAGES + guest_atoms * guest_num
 
-    # print("Reading HISTORY file... ", end="", flush=True)
-    # with open(HISTORY, "r") as histfile:
-    #     lines = histfile.readlines()
-    # print("done!")
-    # num_lines = len(lines)
-    with open(HISTORY, "r") as histfile:
+    with open(HISTORY, "r") as hist_file:
         print("Counting size of file... ", end="", flush=True)
-        num_lines = sum(1 for l in histfile)
-        histfile.seek(0)
+        num_lines = sum(1 for l in hist_file)
+        hist_file.seek(0)
         print("done! (%i lines)" % (num_lines))
 
         print("Counting number of atoms... ", end="", flush=True)
-        tot_atoms = sum(1 for l in histfile if len(l) == 43)
-        histfile.seek(0)
+        tot_atoms = sum(1 for l in hist_file if len(l) == 43)
+        hist_file.seek(0)
         print("done! (%i atoms)" % (tot_atoms))
 
         x = empty(tot_atoms, "float")
@@ -221,8 +208,8 @@ def pull_data(guest_num, guest_atoms, is_guest):
         z = empty(tot_atoms, "float")
 
         print("\nExtracting data from file...")
-        filebar = ProgressBar(maxval=num_lines).start()
-        for i, line in enumerate(histfile):
+        file_bar = ProgressBar(maxval=num_lines).start()
+        for i, line in enumerate(hist_file):
             l = line.split()
 
             if "timestep" in l:
@@ -248,14 +235,14 @@ def pull_data(guest_num, guest_atoms, is_guest):
 
             else: atom = False
 
-            filebar.update(i+1)
+            file_bar.update(i+1)
 
-    filebar.finish()
+    file_bar.finish()
     steps = len(step)
 
 
     print("\nCreating cage %sobjects..." % ("and guest "*is_guest))
-    objbar = ProgressBar(maxval=steps).start()
+    obj_bar = ProgressBar(maxval=steps).start()
     cage_type = atom_type[:CAGE_ATOMS]
     cage_mass = fromiter(atom_mass[:CAGE_ATOMS], "float", CAGE_ATOMS)
     if is_guest:
@@ -284,9 +271,9 @@ def pull_data(guest_num, guest_atoms, is_guest):
         else:
             frame.append({"cage": cages})
 
-        objbar.update(i+1)
+        obj_bar.update(i+1)
 
-    objbar.finish()
+    obj_bar.finish()
     print("All data extracted!")
     return frame
 
@@ -298,15 +285,15 @@ def distance(coords1, coords2):
 
 def visualise(frame, begin, stop):
     for i, f in enumerate(frame[begin:stop]):
-        cages_com = [ c.centre_of_mass() for c in f["cage"] ]
+        cages_com = [c.centre_of_mass() for c in f["cage"]]
         towrite = str(CAGES) + "\nCentres of mass " + str(i) + "\n"
 
         for com in cages_com:
             x, y, z = com
             towrite += " ".join(["Fe", str(x), str(y), str(z)]) + "\n"
 
-        with open("centres.xyz", "a") as centresfile:
-            centresfile.write(towrite)
+        with open("centres.xyz", "a") as _file:
+            _file.write(towrite)
 
 def get_windows(frame):
     print("\nFinding all window radii...")
@@ -362,11 +349,6 @@ def msd(frame, begin_at, guest=0):
         if abs(z_diff) > box[i+begin_at+1]/2 and z_diff > 0:
             z_wrap -= 1
 
-        # print("Init: %f %f %f" % (init_x, init_y, init_z))
-        # print("Prev: %f %f %f" % (prev_x, prev_y, prev_z))
-        # print("Curr: %f %f %f" % (curr_x, curr_y, curr_z))
-        # print("Wrap: %i %i %i" % (x_wrap, y_wrap, z_wrap))
-
         curr_x += box[i+begin_at+1] * x_wrap
         curr_y += box[i+begin_at+1] * y_wrap
         curr_z += box[i+begin_at+1] * z_wrap
@@ -377,41 +359,6 @@ def msd(frame, begin_at, guest=0):
     pbar.finish()
     return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
 
-# def msd(frame, begin_at, guest=0): # this doesn't actually give MSD, needs fixing!
-#     print("\nFinding mean square displacement of guest %i..." % (guest+1))
-#     pbar = ProgressBar(maxval=len(frame)).start()
-#     disps = []
-#     for i, f in enumerate(frame[1:]):
-#         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
-#         prev_x, prev_y, prev_z = frame[i-1]["guest"][guest].centre_of_mass()
-
-#         xdiff = curr_x - prev_x
-#         ydiff = curr_y - prev_y
-#         zdiff = curr_z - prev_z
-
-#         if abs(xdiff) > box[i+begin_at-1]/2 and xdiff < 0:
-#             curr_x += box[i+begin_at-1]
-#         if abs(xdiff) > box[i+begin_at-1]/2 and xdiff > 0:
-#             curr_x -= box[i+begin_at-1]
-
-#         if abs(ydiff) > box[i+begin_at-1]/2 and ydiff < 0:
-#             curr_y += box[i+begin_at-1]
-#         if abs(ydiff) > box[i+begin_at-1]/2 and ydiff > 0:
-#             curr_y -= box[i+begin_at-1]
-
-#         if abs(zdiff) > box[i+begin_at-1]/2 and zdiff < 0:
-#             curr_z += box[i+begin_at-1]
-#         if abs(zdiff) > box[i+begin_at-1]/2 and zdiff > 0:
-#             curr_z -= box[i+begin_at-1]
-
-#         disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
-#         pbar.update(i+1)
-
-#     tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
-#     msd = [0.0] + [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
-#     pbar.finish()
-#     return msd
-
 def in_cage(frame, guest=0):
     print("\nCalculating cages guest %i has travelled through..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
@@ -420,9 +367,6 @@ def in_cage(frame, guest=0):
         # calculate com for each cage in frame
         cages_com = [ c.centre_of_mass(periodic=True) for c in f["cage"] ]
         guest_com = f["guest"][guest].centre_of_mass()
-
-        # square_displacement.append(square(distance(guest_start, guest_com)))
-        # msd = sum(square_displacement) / len(square_displacement)
 
         distances = [ distance(guest_com, com) for com in cages_com ]
         # guest is in cage with minimum distance to centre of mass
@@ -480,16 +424,16 @@ def main():
 
     if "frame.pickle" in listdir():
         print("Pulling data from pickle file.\nIf data has changed, delete file and re-start!")
-        with open("frame.pickle", "rb") as pickle_file:
-            frame, steps, box, step, cage_type, cage_mass = pickle.load(pickle_file)
+        with open("frame.pickle", "rb") as _file:
+            frame, steps, box, step, cage_type, cage_mass = pickle.load(_file)
 
     else:
         frame = pull_data(args.guests, args.guest_atoms, is_guest)
 
         if is_guest:
             print("\nWriting a pickle file to speed things up in the future...", end="", flush=True)
-            with open("frame.pickle", "wb") as pickle_file:
-                pickle.dump((frame, steps, box, step, cage_type, cage_mass), pickle_file)
+            with open("frame.pickle", "wb") as _file:
+                pickle.dump((frame, steps, box, step, cage_type, cage_mass), _file)
             print("done!")
 
     # find first recorded step after equilibriation
@@ -498,15 +442,15 @@ def main():
     if "windows" in tasks:
         windows = get_windows(frame[begin_at:])
         print("Writing window radii... ", end="", flush=True)
-        with open("windows.txt", "w") as window_file:
-            window_file.write("\n".join([str(w) for w in windows]))
+        with open("windows.txt", "w") as _file:
+            _file.write("\n".join([str(w) for w in windows]))
         print("done!")
 
     if "pores" in tasks:
         pores = get_pores(frame[begin_at:])
         print("Writing pore radii... ", end="", flush=True)
-        with open("pores.txt", "w") as pore_file:
-            pore_file.write("\n".join([str(p) for p in pores]))
+        with open("pores.txt", "w") as _file:
+            _file.write("\n".join([str(p) for p in pores]))
         print("done!")
 
     for g in range(args.guests):
@@ -517,7 +461,7 @@ def main():
             str_coms = []
             for com in guest_coms:
                 x, y, z = com
-                str_coms.append(" ".join([str(x),str(y),str(z)]))
+                str_coms.append(" ".join([str(x), str(y), str(z)]))
             output_data.append(str_coms)
 
         if "cage" in tasks:
@@ -538,8 +482,8 @@ def main():
             for i in range(len(output_data[0])):
                 towrite += " ".join([output_data[j][i] for j in range(len(output_data))]) + "\n"
 
-            with open(output, "w") as output_file:
-                output_file.write(towrite)
+            with open(output, "w") as _file:
+                _file.write(towrite)
             print("done!")
 
     return 0

@@ -12,8 +12,8 @@ DIR = os.getcwd().split("/")[-1] # by default, use directory name as file name
 def get_atoms():
     # returns atoms as a list of dicts with id, atom type, x, y z
     atoms = []
-    with open(REVCON, "r") as _f:
-        lines = _f.readlines()
+    with open(REVCON, "r") as _file:
+        lines = _file.readlines()
         for i, line in enumerate(lines):
             if len(line) == 43:
                 l1 = line.split()
@@ -34,8 +34,8 @@ def xyz():
         atom["atom"] = atom["atom"][0].capitalize()
         xyz_output += " ".join([atom["atom"], atom["x"], atom["y"], atom["z"]]) + "\n"
 
-    with open(DIR+".xyz", "w") as _f:
-        _f.write(xyz_output)
+    with open(DIR+".xyz", "w") as _file:
+        _file.write(xyz_output)
 
 def pdb():
     atoms = get_atoms()
@@ -44,14 +44,11 @@ def pdb():
 
     for atom in atoms:
         atom["atom"] = atom["atom"][0].capitalize()
-        # round coords to 4dp so they will be 8 chars including -xx.
-        # atom["x"] = str(round(float(atom["x"]), 5))[8:]
-        # atom["y"] = str(round(float(atom["y"]), 5))[8:]
-        # atom["z"] = str(round(float(atom["z"]), 5))[8:]
+        # could there be a better way of rounding to 8 chars?
         pdb_output += "HETATM%5s %-4s UNK          %8s%8s%8s 1.000 0.000          %-2s\n" % (atom["index"], atom["atom"], atom["x"][:8], atom["y"][:8], atom["z"][:8], atom["atom"])
 
-    with open(DIR+".pdb", "w") as _f:
-        _f.write(pdb_output)
+    with open(DIR+".pdb", "w") as _file:
+        _file.write(pdb_output)
 
 def main():
     args = sys.argv
