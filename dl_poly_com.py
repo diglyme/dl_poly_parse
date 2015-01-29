@@ -2,8 +2,9 @@
 
 from numpy import array, empty, fromiter, where, square, sqrt, concatenate, average
 from progressbar import ProgressBar
-import pdb
+from os import listdir
 import argparse
+import pickle
 
 # input and output files
 HISTORY = "HISTORY"
@@ -196,6 +197,7 @@ def pull_data(guest_num, guest_atoms, is_guest):
     atom_type = []
     atom_mass = []
     box = []
+    frame = []
     atoms_per = CAGE_ATOMS * CAGES + guest_atoms * guest_num
 
     # print("Reading HISTORY file... ", end="", flush=True)
@@ -259,8 +261,6 @@ def pull_data(guest_num, guest_atoms, is_guest):
     if is_guest:
         guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms]
         guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms], "float", guest_atoms)
-
-    frame = []
 
     for i in range(steps):
         start = i*atoms_per
@@ -331,41 +331,86 @@ def get_pores(frame):
     pbar.finish()
     return pores
 
-
-def msd(frame, begin_at, guest=0): # this doesn't actually give MSD, needs fixing!
+def msd(frame, begin_at, guest=0):
     print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
+    init_x, init_y, init_z = frame[0]["guest"][guest].centre_of_mass()
+    x_wrap = y_wrap = z_wrap = 0
     disps = []
+
     for i, f in enumerate(frame[1:]):
+        print("\n%i" % (i))
         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
-        prev_x, prev_y, prev_z = frame[i-1]["guest"][guest].centre_of_mass()
+        prev_x, prev_y, prev_z = frame[i]["guest"][guest].centre_of_mass()
 
-        xdiff = curr_x - prev_x
-        ydiff = curr_y - prev_y
-        zdiff = curr_z - prev_z
+        x_diff = curr_x - prev_x
+        y_diff = curr_y - prev_y
+        z_diff = curr_z - prev_z
 
-        if abs(xdiff) > box[i+begin_at-1]/2 and xdiff < 0:
-            curr_x += box[i+begin_at-1]
-        if abs(xdiff) > box[i+begin_at-1]/2 and xdiff > 0:
-            curr_x -= box[i+begin_at-1]
+        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff < 0:
+            x_wrap += 1
+        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff > 0:
+            x_wrap -= 1
 
-        if abs(ydiff) > box[i+begin_at-1]/2 and ydiff < 0:
-            curr_y += box[i+begin_at-1]
-        if abs(ydiff) > box[i+begin_at-1]/2 and ydiff > 0:
-            curr_y -= box[i+begin_at-1]
+        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff < 0:
+            y_wrap += 1
+        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff > 0:
+            y_wrap -= 1
 
-        if abs(zdiff) > box[i+begin_at-1]/2 and zdiff < 0:
-            curr_z += box[i+begin_at-1]
-        if abs(zdiff) > box[i+begin_at-1]/2 and zdiff > 0:
-            curr_z -= box[i+begin_at-1]
+        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff < 0:
+            z_wrap += 1
+        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff > 0:
+            z_wrap -= 1
 
-        disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
-        pbar.update(i+1)
+        # print("Init: %f %f %f" % (init_x, init_y, init_z))
+        # print("Prev: %f %f %f" % (prev_x, prev_y, prev_z))
+        # print("Curr: %f %f %f" % (curr_x, curr_y, curr_z))
+        # print("Wrap: %i %i %i" % (x_wrap, y_wrap, z_wrap))
 
-    tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
-    msd = [0.0] + [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
+        curr_x += box[i+begin_at+1] * x_wrap
+        curr_y += box[i+begin_at+1] * y_wrap
+        curr_z += box[i+begin_at+1] * z_wrap
+
+        disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
+        pbar.update()
+
     pbar.finish()
-    return msd
+    return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
+
+# def msd(frame, begin_at, guest=0): # this doesn't actually give MSD, needs fixing!
+#     print("\nFinding mean square displacement of guest %i..." % (guest+1))
+#     pbar = ProgressBar(maxval=len(frame)).start()
+#     disps = []
+#     for i, f in enumerate(frame[1:]):
+#         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
+#         prev_x, prev_y, prev_z = frame[i-1]["guest"][guest].centre_of_mass()
+
+#         xdiff = curr_x - prev_x
+#         ydiff = curr_y - prev_y
+#         zdiff = curr_z - prev_z
+
+#         if abs(xdiff) > box[i+begin_at-1]/2 and xdiff < 0:
+#             curr_x += box[i+begin_at-1]
+#         if abs(xdiff) > box[i+begin_at-1]/2 and xdiff > 0:
+#             curr_x -= box[i+begin_at-1]
+
+#         if abs(ydiff) > box[i+begin_at-1]/2 and ydiff < 0:
+#             curr_y += box[i+begin_at-1]
+#         if abs(ydiff) > box[i+begin_at-1]/2 and ydiff > 0:
+#             curr_y -= box[i+begin_at-1]
+
+#         if abs(zdiff) > box[i+begin_at-1]/2 and zdiff < 0:
+#             curr_z += box[i+begin_at-1]
+#         if abs(zdiff) > box[i+begin_at-1]/2 and zdiff > 0:
+#             curr_z -= box[i+begin_at-1]
+
+#         disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
+#         pbar.update(i+1)
+
+#     tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
+#     msd = [0.0] + [average(tot_disps[:i+1]) for i in range(len(tot_disps))]
+#     pbar.finish()
+#     return msd
 
 def in_cage(frame, guest=0):
     print("\nCalculating cages guest %i has travelled through..." % (guest+1))
@@ -401,6 +446,7 @@ def guest_centres(frame, guest=0):
 
 
 def main():
+    global steps, box, step, cage_type, cage_mass
     parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.", epilog="WARNING: currently may do strange things for multiple guests.")
     parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules (default = 0)")
     parser.add_argument("-g", "--guest_atoms", type=int, default=1, help="Number of atoms in each guest (default = 1)")
@@ -422,6 +468,8 @@ def main():
     # THIS VARIABLE CHANGE FOR TESTING PURPOSES ONLY!
     # tasks = ["com", "cage", "msd", "pores", "windows"]
 
+    # These tasks require at least one guest, will set flag
+    # that tells pull_data() to find and store guest objects
     if "com" in tasks or "cage" in tasks or "msd" in tasks:
         is_guest = True
         if args.guests == 0  or args.guest_atoms == 0:
@@ -430,7 +478,19 @@ def main():
     else:
         is_guest = False
 
-    frame = pull_data(args.guests, args.guest_atoms, is_guest)
+    if "frame.pickle" in listdir():
+        print("Pulling data from pickle file.\nIf data has changed, delete file and re-start!")
+        with open("frame.pickle", "rb") as pickle_file:
+            frame, steps, box, step, cage_type, cage_mass = pickle.load(pickle_file)
+
+    else:
+        frame = pull_data(args.guests, args.guest_atoms, is_guest)
+
+        if is_guest:
+            print("\nWriting a pickle file to speed things up in the future...", end="", flush=True)
+            with open("frame.pickle", "wb") as pickle_file:
+                pickle.dump((frame, steps, box, step, cage_type, cage_mass), pickle_file)
+            print("done!")
 
     # find first recorded step after equilibriation
     begin_at = step.index(next(s for s in step if s > args.equilib))
