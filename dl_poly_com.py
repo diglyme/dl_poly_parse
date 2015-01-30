@@ -15,8 +15,10 @@ CAGE_ATOMS = 168
 # Cages per cell
 CAGES = 8
 
+# Indices of atoms around cage windows
 WINDOW = [(2, 100, 142), (16, 72, 128), (30, 58, 156), (44, 86, 114)]
 
+# Van der Waals radii of atoms in cage
 VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
 
 guest_atoms = 1
@@ -326,7 +328,6 @@ def msd(frame, begin_at, guest=0):
     disps = []
 
     for i, f in enumerate(frame[1:]):
-        print("\n%i" % (i))
         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
         prev_x, prev_y, prev_z = frame[i]["guest"][guest].centre_of_mass()
 
@@ -468,7 +469,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in msd(frame[begin_at:], begin_at)])
+            output_data.append([str(m) for m in msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
