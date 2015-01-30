@@ -28,17 +28,42 @@ def get_headers(lines):
     return headers
 
 
-def get_property(lines, headers, prop):
-    "Returns all values of a named property as a list."
+def get_property(lines, headers, prop, avg=False):
+    """
+    Returns all values of a named property as a list.
+    If avg=True, returns list of rolling averages instead.
+    """
     prop_index = headers.index(prop)
     prop_list = []
 
+    if avg:         # THIS IS SEVERELY BROKEN!
+        offset = 4
+    else:
+        offset = 0
+
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118:
-            values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
-            prop_list.append(float(values[prop_index]))
+            values = lines[i+1+offset].split() + lines[i+2+offset].split() + lines[i+3+offset].split()
+            try:
+                prop_list.append(float(values[prop_index]))
+            except ValueError:
+                prop_list.append(values[prop_index])
 
     return prop_list[:-1] # discard final item as it is the total average
+
+def get_final_avg(lines, headers, prop):
+    "Returns the final average of a named property."
+
+    prop_index = headers.index(prop)
+
+    # total averages are given after the second-to-last BREAK
+    avg_line = [i for i, line in enumerate(lines) if line == BREAK][-2]
+    values = lines[avg_line+1].split() + lines[avg_line+2].split() + lines[avg_line+3].split()
+
+    try:
+        return float(values[prop_index])
+    except ValueError:
+        return values[prop_index]
 
 def sort_by_column(unsorted):
     """
@@ -53,14 +78,22 @@ def sort_by_column(unsorted):
             sort.append(j)
     return sort[:30]
 
-def get_all_props(lines):
-    "Returns all properties as a list of lists, with same ordering as headers."
+def get_all_props(lines, avg=False):
+    """
+    Returns all properties as a list of lists, with same ordering as headers.
+    If avg=True, returns lists of rolling averages instead.
+    """
     properties = []
+
+    if avg:
+        offset = 4
+    else:
+        offset = 0
 
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118: # data always found in lines of 10 after BREAK
 
-            values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
+            values = lines[i+1+offset].split() + lines[i+2+offset].split() + lines[i+3+offset].split()
             if properties == []:    # fill with lists of initial values if empty
                 properties = [[float(v)] for v in values]
                 properties[0][0] = int(properties[0][0])
