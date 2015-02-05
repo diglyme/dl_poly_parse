@@ -360,6 +360,38 @@ def msd(frame, begin_at, guest=0):
     pbar.finish()
     return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
 
+def other_msd(frame, begin_at, guest=0):
+    print("\nFinding mean square displacement of guest %i..." % (guest+1))
+    pbar = ProgressBar(maxval=len(frame)).start()
+    disps = []
+
+    for i, f in enumerate(frame[1:]):
+        print("\n%i" % (i))
+        curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
+        prev_x, prev_y, prev_z = frame[i]["guest"][guest].centre_of_mass()
+
+        x_diff = curr_x - prev_x
+        y_diff = curr_y - prev_y
+        z_diff = curr_z - prev_z
+
+        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff < 0:
+            curr_x += box[i+begin_at+1]
+        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff > 0:
+            curr_x -= box[i+begin_at+1]
+        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff < 0:
+            curr_y += box[i+begin_at+1]
+        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff > 0:
+            curr_y -= box[i+begin_at+1]
+        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff < 0:
+            curr_z += box[i+begin_at+1]
+        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff > 0:
+            curr_z -= box[i+begin_at+1]
+
+        disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
+        pbar.update()
+    pbar.finish()
+    return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
+
 def in_cage(frame, guest=0):
     print("\nCalculating cages guest %i has travelled through..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
@@ -469,7 +501,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in msd(frame[begin_at:], begin_at, guest=g)])
+            output_data.append([str(m) for m in other_msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
