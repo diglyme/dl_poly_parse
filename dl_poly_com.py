@@ -320,12 +320,13 @@ def get_pores(frame):
     pbar.finish()
     return pores
 
-def msd(frame, begin_at, guest=0):
+def init_msd(frame, begin_at, guest=0):
     print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     init_x, init_y, init_z = frame[0]["guest"][guest].centre_of_mass()
     x_wrap = y_wrap = z_wrap = 0
     disps = []
+    msd = []
 
     for i, f in enumerate(frame[1:]):
         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
@@ -355,18 +356,20 @@ def msd(frame, begin_at, guest=0):
         curr_z += box[i+begin_at+1] * z_wrap
 
         disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
+        msd.append(average(disps))
         pbar.update()
 
     pbar.finish()
-    return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
+    return [0.0] + msd
 
-def other_msd(frame, begin_at, guest=0):
+def prev_msd(frame, begin_at, guest=0):
     print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     disps = []
+    tot_disps = []
+    msd = []
 
     for i, f in enumerate(frame[1:]):
-        print("\n%i" % (i))
         curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
         prev_x, prev_y, prev_z = frame[i]["guest"][guest].centre_of_mass()
 
@@ -388,9 +391,14 @@ def other_msd(frame, begin_at, guest=0):
             curr_z -= box[i+begin_at+1]
 
         disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
-        pbar.update()
+        tot_disps.append(sum(disps))
+        msd.append(average(tot_disps))
+
+        pbar.update(i+1)
+
     pbar.finish()
-    return [0.0] + [average(disps[:i+1]) for i in range(len(disps))]
+    #tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
+    return [0.0] + msd
 
 def in_cage(frame, guest=0):
     print("\nCalculating cages guest %i has travelled through..." % (guest+1))
@@ -501,7 +509,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in other_msd(frame[begin_at:], begin_at, guest=g)])
+            output_data.append([str(m) for m in init_msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
