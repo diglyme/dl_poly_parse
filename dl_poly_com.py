@@ -106,7 +106,7 @@ class Cage:
             b = distance(self.per_position(C), self.per_position(B))
             c = distance(self.per_position(A), self.per_position(C))
 
-            radius = (a*b*c) / sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c))
+            radius = ((a*b*c) / sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c))) - VDW["h"]
             windows.append(radius)
         return windows
 
