@@ -5,10 +5,7 @@
 # file of simple columns, for easy readability by plotting software.
 #
 # To do:
-#  * give option to output as csv
-#  * give option to return properties as horizontally or vertically sorted
-#  * allow importing as library to get single properties as lists
-#  * functions to get rolling and total averages
+#  * functions to get rolling averages
 
 OUTPUT = "OUTPUT"
 PARSED = "parsed.txt"
@@ -36,14 +33,9 @@ def get_property(lines, headers, prop, avg=False):
     prop_index = headers.index(prop)
     prop_list = []
 
-    if avg:         # THIS IS SEVERELY BROKEN!
-        offset = 4
-    else:
-        offset = 0
-
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118:
-            values = lines[i+1+offset].split() + lines[i+2+offset].split() + lines[i+3+offset].split()
+            values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
             try:
                 prop_list.append(float(values[prop_index]))
             except ValueError:
@@ -85,15 +77,10 @@ def get_all_props(lines, avg=False):
     """
     properties = []
 
-    if avg:
-        offset = 4
-    else:
-        offset = 0
-
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118: # data always found in lines of 10 after BREAK
 
-            values = lines[i+1+offset].split() + lines[i+2+offset].split() + lines[i+3+offset].split()
+            values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
             if properties == []:    # fill with lists of initial values if empty
                 properties = [[float(v)] for v in values]
                 properties[0][0] = int(properties[0][0])
