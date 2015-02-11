@@ -8,7 +8,6 @@ import pickle
 
 # input and output files
 HISTORY = "HISTORY"
-OUT = "CoM.txt"
 
 # Number of atoms per cage
 CAGE_ATOMS = 168
@@ -16,7 +15,8 @@ CAGE_ATOMS = 168
 CAGES = 8
 
 # Indices of atoms around cage windows
-WINDOW = [(2, 100, 142), (16, 72, 128), (30, 58, 156), (44, 86, 114)]
+WINDOW = [(1, 99, 141), (15, 71, 127), (29, 57, 155), (43, 85, 113)]
+WINDOW_ATOM = "c"
 
 # Van der Waals radii of atoms in cage
 VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
@@ -106,7 +106,7 @@ class Cage:
             b = distance(self.per_position(C), self.per_position(B))
             c = distance(self.per_position(A), self.per_position(C))
 
-            radius = ((a*b*c) / sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c))) - VDW["h"]
+            radius = ((a*b*c) / sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c))) - VDW[WINDOW_ATOM]
             windows.append(radius)
         return windows
 
@@ -450,9 +450,6 @@ def main():
         print("Error: no valid task selected.\nPlease choose from: com, cage, msd, pores, windows")
         return 1
 
-    # THIS VARIABLE CHANGE FOR TESTING PURPOSES ONLY!
-    # tasks = ["com", "cage", "msd", "pores", "windows"]
-
     # These tasks require at least one guest, will set flag
     # that tells pull_data() to find and store guest objects
     if "com" in tasks or "cage" in tasks or "msd" in tasks:
@@ -471,11 +468,11 @@ def main():
     else:
         frame = pull_data(args.guests, args.guest_atoms, is_guest)
 
-        if is_guest:
-            print("\nWriting a pickle file to speed things up in the future...", end="", flush=True)
-            with open("frame.pickle", "wb") as _file:
-                pickle.dump((frame, steps, box, step, cage_type, cage_mass), _file)
-            print("done!")
+        # if is_guest:
+        print("\nWriting a pickle file to speed things up in the future...", end="", flush=True)
+        with open("frame.pickle", "wb") as _file:
+            pickle.dump((frame, steps, box, step, cage_type, cage_mass), _file)
+        print("done!")
 
     # find first recorded step after equilibriation
     begin_at = step.index(next(s for s in step if s > args.equilib))
