@@ -33,6 +33,12 @@ def get_property(lines, headers, prop, avg=False):
     prop_index = headers.index(prop)
     prop_list = []
 
+    if avg and prop_index in ["step", "time(ps)", "cpu(s)"]:
+        raise ValueError("%s property has no rolling average" % (prop_))
+
+    # need to add offset for average, do some modulo/floor division
+    # magic to correct prop_index
+
     for i, l in enumerate(lines):
         if l == BREAK and len(lines[i+1]) == 118:
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
