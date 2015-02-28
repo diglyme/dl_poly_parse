@@ -181,7 +181,7 @@ class Guest:
 
             return (com_x, com_y, com_z)
 
-def pull_data(guest_num, guest_atoms, is_guest):
+def pull_data(cage_atoms, guest_num, guest_atoms, is_guest):
     global steps, box, step, cage_type, cage_mass
     timestep = 0
     init = True
@@ -192,7 +192,7 @@ def pull_data(guest_num, guest_atoms, is_guest):
     atom_mass = []
     box = []
     frame = []
-    atoms_per = CAGE_ATOMS * CAGES + guest_atoms * guest_num
+    atoms_per = cage_atoms * CAGES + guest_atoms * guest_num
 
     with open(HISTORY, "r") as hist_file:
         print("Counting size of file... ", end="", flush=True)
@@ -245,11 +245,11 @@ def pull_data(guest_num, guest_atoms, is_guest):
 
     print("\nCreating cage %sobjects..." % ("and guest "*is_guest))
     obj_bar = ProgressBar(maxval=steps).start()
-    cage_type = atom_type[:CAGE_ATOMS]
-    cage_mass = fromiter(atom_mass[:CAGE_ATOMS], "float", CAGE_ATOMS)
+    cage_type = atom_type[:cage_atoms]
+    cage_mass = fromiter(atom_mass[:cage_atoms], "float", cage_atoms)
     if is_guest:
-        guest_type = atom_type[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms]
-        guest_mass = fromiter(atom_mass[CAGE_ATOMS*CAGES:CAGE_ATOMS*CAGES+guest_atoms], "float", guest_atoms)
+        guest_type = atom_type[cage_atoms*CAGES:cage_atoms*CAGES+guest_atoms]
+        guest_mass = fromiter(atom_mass[cage_atoms*CAGES:cage_atoms*CAGES+guest_atoms], "float", guest_atoms)
 
     for i in range(steps):
         start = i*atoms_per
@@ -258,15 +258,15 @@ def pull_data(guest_num, guest_atoms, is_guest):
         cages = []
 
         for j in range(CAGES):
-            cage_start = start + j * CAGE_ATOMS
-            cage_end = start + (j+1) * CAGE_ATOMS
+            cage_start = start + j * cage_atoms
+            cage_end = start + (j+1) * cage_atoms
             cages.append(Cage(i, x[cage_start:cage_end], y[cage_start:cage_end], z[cage_start:cage_end]))
 
         if is_guest:
             guests = []
             for j in range(guest_num):
-                guest_start = start + (CAGE_ATOMS*CAGES) + j * guest_atoms
-                guest_end = start + (CAGE_ATOMS*CAGES) + (j+1) * guest_atoms
+                guest_start = start + (cage_atoms*CAGES) + j * guest_atoms
+                guest_end = start + (cage_atoms*CAGES) + (j+1) * guest_atoms
                 guests.append(Guest(i, x[guest_start:guest_end], y[guest_start:guest_end], z[guest_start:guest_end], guest_type, guest_mass))
 
             frame.append({"cage": cages, "guest": guests})
@@ -433,9 +433,10 @@ def guest_centres(frame, guest=0):
 def main():
     global steps, box, step, cage_type, cage_mass
     parser = argparse.ArgumentParser(description="Calculates centres-of-mass and other positional data from a DL_POLY HISTORY file.", epilog="WARNING: currently may do strange things for multiple guests.")
+    parser.add_argument("-c", "--cage_atoms", type=int, default=168, help="Number of atoms per cage (default = 168)")
     parser.add_argument("-n", "--guests", type=int, default=0, help="Number of guest molecules (default = 0)")
     parser.add_argument("-g", "--guest_atoms", type=int, default=1, help="Number of atoms in each guest (default = 1)")
-    parser.add_argument("-e", "--equilib", type=int, default=0, help="Number of equilibriation steps to skip before calculating (default = 0)")
+    parser.add_argument("-e", "--equilib", type=int, default=714286, help="Number of equilibriation steps to skip before calculating (default = 714286)")
     parser.add_argument("-o", "--output", default="guest_motion.txt", help="File name for guest motion output (default = 'guest_motion.txt'")
     parser.add_argument("task", nargs="+", help="""Task(s) to run, choose from:
         com (print guest centres of mass);
@@ -466,7 +467,7 @@ def main():
             frame, steps, box, step, cage_type, cage_mass = pickle.load(_file)
 
     else:
-        frame = pull_data(args.guests, args.guest_atoms, is_guest)
+        frame = pull_data(args.cage_atoms, args.guests, args.guest_atoms, is_guest)
 
         # if is_guest:
         print("\nWriting a pickle file to speed things up in the future...", end="", flush=True)
