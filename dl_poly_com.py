@@ -5,6 +5,7 @@ from progressbar import ProgressBar
 from os import listdir
 import argparse
 import pickle
+import pdb
 
 # input and output files
 HISTORY = "HISTORY"
@@ -19,7 +20,7 @@ WINDOW = [(1, 99, 141), (15, 71, 127), (29, 57, 155), (43, 85, 113)]
 WINDOW_ATOM = "c"
 
 # Van der Waals radii of atoms in cage
-VDW = {"h": 1.2, "c": 1.7, "n": 1.55}
+VDW = {"h": 1.2, "c": 1.7, "n": 1.55, "o": 1.52}
 
 guest_atoms = 1
 guest_num = 1
@@ -324,8 +325,11 @@ def init_msd(frame, begin_at, guest=0):
     print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     init_x, init_y, init_z = frame[0]["guest"][guest].centre_of_mass()
-    x_wrap = y_wrap = z_wrap = 0
+    x_wrap = 0
+    y_wrap = 0
+    z_wrap = 0
     disps = []
+    tot_disps = []
     msd = []
 
     for i, f in enumerate(frame[1:]):
@@ -356,10 +360,13 @@ def init_msd(frame, begin_at, guest=0):
         curr_z += box[i+begin_at+1] * z_wrap
 
         disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
-        msd.append(average(disps))
+        tot_disps.append(sum(disps))
+        msd.append(average(tot_disps))
         pbar.update()
 
     pbar.finish()
+    print(disps[:100])
+    print(msd[:100])
     return [0.0] + msd
 
 def prev_msd(frame, begin_at, guest=0):
@@ -507,7 +514,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in init_msd(frame[begin_at:], begin_at, guest=g)])
+            output_data.append([str(m) for m in prev_msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
