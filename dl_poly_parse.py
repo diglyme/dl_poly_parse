@@ -80,16 +80,21 @@ def get_average(lines, headers, prop):
     """
     Returns rolling averages of a named property as a list.
     """
+    # time properties have no rolling average
+    if prop in ["step", "time(ps)", "cpu(s)"]:
+        raise ValueError("%s property has no rolling average" % (prop))
+
     prop_index = headers.index(prop)
 
-    if prop_index in ["step", "time(ps)", "cpu(s)"]:
-        raise ValueError("%s property has no rolling average" % (prop_index))
+    # the averages rows have no values for time properties, but include "rolling" and "average"
+    # in the position for "step" and "time(ps)" properties. The position for "cpu(s)" had only whitespace
+    # so the list of average values will contain 29 values rather than 30. Thus, any properties
+    # beyond "cpu(s)" will need to have their index adjusted
+    if prop_index > 20:
+        prop_index -= 1
 
     prop_list = []
     offset = 4 # rolling averages are given in rows four lines below values
-
-    # need to do some modulo/floor division
-    # magic to correct prop_index
 
     for i, line in enumerate(lines):
         if line == BREAK and len(lines[i+1]) == 118:
