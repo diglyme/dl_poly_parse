@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-
+"""
 # dl_poly_parse
 # If ran as script, takes a DL_POLY OUTPUT file and returns the physical properties
 # as a parsed file of simple columns, for easy readability by plotting software.
-# It can also be imported as a module with functions to return a list for any or all named properties.
+# It can also be imported as a module with functions to return lists of properties or averages.
+"""
 
 OUTPUT = "OUTPUT"
 PARSED = "parsed.txt"
@@ -36,7 +37,7 @@ def sort_by_column(unsorted):
     # values come in three rows of 10 values, thus list slicing every 10th item will order by column
     # this must be done for each value in the unsorted list as slicing will skip several
     # the final list will contain triplicates of values, so is truncated to the 30 unique values
-    for i in range(0,len(unsorted)):
+    for i in range(0, len(unsorted)):
         triple = unsorted[i::10]
         for j in triple:
             sort.append(j)
@@ -48,32 +49,32 @@ def get_all_props(lines):
     """
     properties = []
 
-    for i, l in enumerate(lines):
+    for i, line in enumerate(lines):
         # data always found in three lines of 10 values after BREAK, with 118 characters
         # comparing line character length was found to be faster than
         # splitting the line and checking if the list had 10 items
-        if l == BREAK and len(lines[i+1]) == 118: 
+        if line == BREAK and len(lines[i+1]) == 118:
 
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
 
             if properties == []:    # fill with lists of initial values if empty
                 properties = [[float(v)] for v in values]
-                properties[0][0] = int(properties[0][0]) # step is always an integer, other values are floats
+                properties[0][0] = int(properties[0][0]) # step is always integer, other values are floats
 
             else:                   # append otherwise
-                for j, p in enumerate(properties):
+                for j, prop in enumerate(properties):
                     if j == 0:      # the first value, step, is the only int
-                        p.append(int(values[j]))
+                        prop.append(int(values[j]))
 
                     # final averages give ******** for some values, which throw ValueError
                     # these are appended to the list as strings as they will later be discarded
                     else:
                         try:
-                            p.append(float(values[j]))
+                            prop.append(float(values[j]))
                         except ValueError:
-                            p.append(values[j])
+                            prop.append(values[j])
 
-    return [p[:-1] for p in properties] # discard final items as they are total averages
+    return [prop[:-1] for prop in properties] # discard final items as they are total averages
 
 def get_average(lines, headers, prop):
     """
@@ -81,8 +82,8 @@ def get_average(lines, headers, prop):
     """
     prop_index = headers.index(prop)
 
-    if avg and prop_index in ["step", "time(ps)", "cpu(s)"]:
-        raise ValueError("%s property has no rolling average" % (prop_))
+    if prop_index in ["step", "time(ps)", "cpu(s)"]:
+        raise ValueError("%s property has no rolling average" % (prop_index))
 
     prop_list = []
     offset = 4 # rolling averages are given in rows four lines below values
@@ -90,8 +91,8 @@ def get_average(lines, headers, prop):
     # need to do some modulo/floor division
     # magic to correct prop_index
 
-    for i, l in enumerate(lines):
-        if l == BREAK and len(lines[i+1]) == 118:
+    for i, line in enumerate(lines):
+        if line == BREAK and len(lines[i+1]) == 118:
             values = lines[i+1+offset].split() + lines[i+2+offset].split() + lines[i+3+offset].split()
             try:
                 prop_list.append(float(values[prop_index]))
@@ -107,8 +108,8 @@ def get_property(lines, headers, prop):
     prop_index = headers.index(prop)
     prop_list = []
 
-    for i, l in enumerate(lines):
-        if l == BREAK and len(lines[i+1]) == 118:
+    for i, line in enumerate(lines):
+        if line == BREAK and len(lines[i+1]) == 118:
             values = lines[i+1].split() + lines[i+2].split() + lines[i+3].split()
             try:
                 prop_list.append(float(values[prop_index]))
@@ -142,12 +143,12 @@ def main():
 
     parsed = "" # blank string will be filled with parsed output data
 
-    for h in sorted_headers:
-        parsed += "%-12s" % (h)
+    for header in sorted_headers:
+        parsed += "%-12s" % (header)
     for i in range(tot_num):
         parsed += "\n"
-        for p in sorted_props:
-            parsed += "%-11s " % (p[i])
+        for prop in sorted_props:
+            parsed += "%-11s " % (prop[i])
 
     with open(PARSED, "w") as _file:
         _file.write(parsed)
