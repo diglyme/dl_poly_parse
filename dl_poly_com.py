@@ -362,7 +362,7 @@ def msd(frame, begin_at, guest=0):
         disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
         tot_disps.append(sum(disps))
         msd.append(average(tot_disps))
-        pbar.update()
+        pbar.update(i+1)
 
     pbar.finish()
     return [0.0] + msd
