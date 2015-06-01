@@ -360,13 +360,11 @@ def init_msd(frame, begin_at, guest=0):
         curr_z += box[i+begin_at+1] * z_wrap
 
         disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
-        tot_disps.append(sum(disps))
-        msd.append(average(tot_disps))
+        #tot_disps.append(sum(disps))
+        msd.append(average(disps))
         pbar.update()
 
     pbar.finish()
-    print(disps[:100])
-    print(msd[:100])
     return [0.0] + msd
 
 def prev_msd(frame, begin_at, guest=0):
@@ -514,7 +512,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in prev_msd(frame[begin_at:], begin_at, guest=g)])
+            output_data.append([str(m) for m in init_msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
