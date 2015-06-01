@@ -321,7 +321,7 @@ def get_pores(frame):
     pbar.finish()
     return pores
 
-def init_msd(frame, begin_at, guest=0):
+def msd(frame, begin_at, guest=0):
     print("\nFinding mean square displacement of guest %i..." % (guest+1))
     pbar = ProgressBar(maxval=len(frame)).start()
     init_x, init_y, init_z = frame[0]["guest"][guest].centre_of_mass()
@@ -360,49 +360,11 @@ def init_msd(frame, begin_at, guest=0):
         curr_z += box[i+begin_at+1] * z_wrap
 
         disps.append(square(curr_x-init_x) + square(curr_y-init_y) + square(curr_z-init_z))
-        #tot_disps.append(sum(disps))
-        msd.append(average(disps))
+        tot_disps.append(sum(disps))
+        msd.append(average(tot_disps))
         pbar.update()
 
     pbar.finish()
-    return [0.0] + msd
-
-def prev_msd(frame, begin_at, guest=0):
-    print("\nFinding mean square displacement of guest %i..." % (guest+1))
-    pbar = ProgressBar(maxval=len(frame)).start()
-    disps = []
-    tot_disps = []
-    msd = []
-
-    for i, f in enumerate(frame[1:]):
-        curr_x, curr_y, curr_z = f["guest"][guest].centre_of_mass()
-        prev_x, prev_y, prev_z = frame[i]["guest"][guest].centre_of_mass()
-
-        x_diff = curr_x - prev_x
-        y_diff = curr_y - prev_y
-        z_diff = curr_z - prev_z
-
-        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff < 0:
-            curr_x += box[i+begin_at+1]
-        if abs(x_diff) > box[i+begin_at+1]/2 and x_diff > 0:
-            curr_x -= box[i+begin_at+1]
-        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff < 0:
-            curr_y += box[i+begin_at+1]
-        if abs(y_diff) > box[i+begin_at+1]/2 and y_diff > 0:
-            curr_y -= box[i+begin_at+1]
-        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff < 0:
-            curr_z += box[i+begin_at+1]
-        if abs(z_diff) > box[i+begin_at+1]/2 and z_diff > 0:
-            curr_z -= box[i+begin_at+1]
-
-        disps.append(square(curr_x-prev_x) + square(curr_y-prev_y) + square(curr_z-prev_z))
-        tot_disps.append(sum(disps))
-        msd.append(average(tot_disps))
-
-        pbar.update(i+1)
-
-    pbar.finish()
-    #tot_disps = [sum(disps[:i+1]) for i in range(len(disps))]
     return [0.0] + msd
 
 def in_cage(frame, guest=0):
@@ -512,7 +474,7 @@ def main():
             output_data.append([str(c) for c in in_cage(frame[begin_at:], guest=g)])
 
         if "msd" in tasks:
-            output_data.append([str(m) for m in init_msd(frame[begin_at:], begin_at, guest=g)])
+            output_data.append([str(m) for m in msd(frame[begin_at:], begin_at, guest=g)])
 
         if len(output_data) > 1:
             if args.guests == 1:
